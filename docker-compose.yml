@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: erp_postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: erp_audam
+      POSTGRES_USER: milpillas
+      POSTGRES_PASSWORD: audam
+
+    ports:
+      - '5432:5432'
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    container_name: erp_adminer
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
