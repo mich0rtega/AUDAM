@@ -10,3 +10,12 @@ export enum Role {
   COMPRAS = 'COMPRAS',
   USUARIO = 'USUARIO',
 }
+
+export interface JwtBasePayload {
+  userId: string;
+}
+
+export interface JwtContextPayload extends JwtBasePayload {
+  environment: Environment;
+  role: Role;
+}

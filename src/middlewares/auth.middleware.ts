@@ -1,40 +1,41 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { jwtConfig } from '../config/jwt';
+import { Role } from '../auth/auth.types';
 
-export interface AuthPayload {
+interface JwtPayload {
   userId: string;
-  role: string;
+  role: Role;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthPayload;
-    }
-  }
-}
-
-export function authenticate(
+export const authenticate = (
   req: Request,
   res: Response,
   next: NextFunction
-) {
-  const token = req.cookies?.access_token;
+) => {
+  const token = req.cookies?.accessToken;
 
   if (!token) {
     return res.status(401).json({ message: 'No autenticado' });
   }
 
   try {
-    const payload = jwt.verify(
+    const decoded = jwt.verify(
       token,
-      jwtConfig.secret
-    ) as AuthPayload;
+      process.env.JWT_SECRET!
+    ) as JwtPayload;
 
-    req.user = payload;
+    
+    if (!Object.values(Role).includes(decoded.role)) {
+      return res.status(401).json({ message: 'Rol inválido' });
+    }
+
+    req.user = {
+      userId: decoded.userId,
+      role: decoded.role,
+    };
+
     next();
   } catch {
     return res.status(401).json({ message: 'Token inválido' });
   }
-}
+};
