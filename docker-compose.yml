@@ -1,19 +1,27 @@
 version: '3.9'
 
 services:
+  api:
+    build: .
+    container_name: erp_api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    depends_on:
+      - postgres
+
   postgres:
     image: postgres:15
     container_name: erp_postgres
     restart: unless-stopped
-
     environment:
       POSTGRES_DB: erp_audam
       POSTGRES_USER: milpillas
       POSTGRES_PASSWORD: audam
-
     ports:
-      - '5432:5432'
-
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -22,7 +30,7 @@ services:
     container_name: erp_adminer
     restart: unless-stopped
     ports:
-      - '8080:8080'
+      - "8080:8080"
     depends_on:
       - postgres
 

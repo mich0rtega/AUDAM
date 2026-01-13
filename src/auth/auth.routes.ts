@@ -1,17 +1,10 @@
 import { Router } from 'express';
-import {
-  login,
-  me,
-  logout,
-  selectEnvironment,
-} from './auth.controller';
+import { AuthController } from './auth.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-router.post('/login', login);
-router.get('/me', authenticate, me);
-router.post('/select-environment', authenticate, selectEnvironment);
-router.post('/logout', authenticate, logout);
+router.post('/login', AuthController.login);
+router.get('/environments', authenticate, AuthController.getEnvironments);
 
 export default router;
