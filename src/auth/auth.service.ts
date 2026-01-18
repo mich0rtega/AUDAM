@@ -117,5 +117,6 @@ static async userHasEnvironment(userId: string, environmentId: string) {
   return !!relation;
 }
 
+
 }
 

@@ -27,9 +27,9 @@ export async function setEnvironment(
     }
   });
 
-  if (!relation) {
+  if (!relation || !relation.isActive) {
     return res.status(403).json({
-      message: 'Acceso denegado al entorno'
+      message: 'Acceso revocado a este entorno'
     });
   }
 

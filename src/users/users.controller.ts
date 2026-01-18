@@ -52,4 +52,26 @@ export class UsersController {
     await UsersService.enableUser(req.params.id, req.user!.userId);
     res.json({ message: 'Usuario activado' });
   }
+  static async revokeEnvironment(req: Request, res: Response) {
+  await UsersService.revokeEnvironmentAccess(
+    req.params.id,
+    req.user!.userId
+  );
+
+  res.json({ message: 'Acceso al entorno revocado' });
+}
+
+static async restoreEnvironment(req: Request, res: Response) {
+  await UsersService.restoreEnvironmentAccess(
+    req.params.id,
+    req.user!.userId
+  );
+
+  res.json({ message: 'Acceso al entorno restaurado' });
+}
+static async listAll(req: Request, res: Response) {
+  const users = await UsersService.getAllUsers();
+  res.json(users);
+}
+
 }

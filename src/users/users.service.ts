@@ -142,6 +142,66 @@ export class UsersService {
       }
     });
   }
+  // Revocar acceso a un entorno
+static async revokeEnvironmentAccess(
+  userEnvironmentId: string,
+  actorId: string
+) {
+  return prisma.$transaction([
+    prisma.userEnvironment.update({
+      where: { id: userEnvironmentId },
+      data: {
+        isActive: false,
+        revokedAt: new Date()
+      }
+    }),
+    prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'ENVIRONMENT_REVOKED',
+        targetType: 'UserEnvironment',
+        targetId: userEnvironmentId
+      }
+    })
+  ]);
+}
+
+// Restaurar acceso a un entorno
+static async restoreEnvironmentAccess(
+  userEnvironmentId: string,
+  actorId: string
+) {
+  return prisma.$transaction([
+    prisma.userEnvironment.update({
+      where: { id: userEnvironmentId },
+      data: {
+        isActive: true,
+        revokedAt: null
+      }
+    }),
+    prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'ENVIRONMENT_RESTORED',
+        targetType: 'UserEnvironment',
+        targetId: userEnvironmentId
+      }
+    })
+  ]);
+}
+static async getAllUsers() {
+  return prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      isActive: true,
+      createdAt: true
+    },
+    orderBy: {
+      createdAt: 'asc'
+    }
+  });
+}
 }
 
 

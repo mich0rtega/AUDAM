@@ -20,3 +20,7 @@ export interface ChangeRoleDto {
   userEnvironmentId: string;
   role: AssignRoleDto['role'];
 }
+export interface RevokeEnvironmentParams {
+  id: string;
+}
+
