@@ -1,37 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { jwtConfig } from '../config/jwt';
-
-export interface AuthPayload {
-  userId: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthPayload;
-      context?: {
-        environmentId: string;
-        role: string;
-      };
-    }
-  }
-}
+import { verifyToken } from '../config/jwt';
 
 export function authenticate(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const token = req.cookies?.access_token;
+  const token = (req as any).cookies?.access_token;
 
   if (!token) {
     return res.status(401).json({ message: 'No autenticado' });
   }
 
   try {
-    const payload = jwt.verify(token, jwtConfig.secret) as AuthPayload;
-    req.user = payload;
+    const payload = verifyToken(token) as { userId: string; email: string };
+
+    req.user = {
+      userId: payload.userId,
+      email: payload.email
+    };
+
     next();
   } catch {
     return res.status(401).json({ message: 'Token inválido' });

@@ -6,36 +6,35 @@ export async function setEnvironment(
   res: Response,
   next: NextFunction
 ) {
-  const environmentName = req.headers['x-environment'] as string;
+  const environmentId = req.cookies.active_environment;
   const userId = req.user!.userId;
 
-  if (!environmentName) {
-    return res.status(400).json({ message: 'Entorno no seleccionado' });
-  }
-
-  const environment = await prisma.environment.findUnique({
-    where: { name: environmentName }
-  });
-
-  if (!environment) {
-    return res.status(400).json({ message: 'Entorno inválido' });
+  if (!environmentId) {
+    return res.status(400).json({
+      message: 'Entorno no seleccionado'
+    });
   }
 
   const relation = await prisma.userEnvironment.findUnique({
     where: {
       userId_environmentId: {
         userId,
-        environmentId: environment.id
+        environmentId
       }
+    },
+    include: {
+      environment: true
     }
   });
 
   if (!relation) {
-    return res.status(403).json({ message: 'Acceso denegado al entorno' });
+    return res.status(403).json({
+      message: 'Acceso denegado al entorno'
+    });
   }
 
   req.context = {
-    environmentId: environment.id,
+    environmentId: relation.environment.id,
     role: relation.role
   };
 

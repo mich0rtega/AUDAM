@@ -1,15 +1,12 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
-import { jwtConfig } from '../config/jwt';
+import { signToken } from '../config/jwt';
 
 export class AuthService {
   static async login(email: string, password: string) {
     const user = await prisma.user.findUnique({
       where: { email },
-      include: {
-        environments: true
-      }
+      include: { environments: true }
     });
 
     if (!user || !user.isActive) {
@@ -21,21 +18,13 @@ export class AuthService {
       throw new Error('Credenciales inválidas');
     }
 
-    const token = jwt.sign(
-      { userId: user.id },
-      jwtConfig.secret,
-      { expiresIn: jwtConfig.expiresIn }
-    );
-
-    return token;
+    return signToken({ userId: user.id });
   }
 
   static async getUserEnvironments(userId: string) {
     const relations = await prisma.userEnvironment.findMany({
       where: { userId },
-      include: {
-        environment: true
-      }
+      include: { environment: true }
     });
 
     return relations.map(r => ({
@@ -43,5 +32,15 @@ export class AuthService {
       name: r.environment.name,
       role: r.role
     }));
+  }
+
+  static async userHasEnvironment(userId: string, environmentId: string) {
+    const relation = await prisma.userEnvironment.findUnique({
+      where: {
+        userId_environmentId: { userId, environmentId }
+      }
+    });
+
+    return !!relation;
   }
 }

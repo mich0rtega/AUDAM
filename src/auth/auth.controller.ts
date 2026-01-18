@@ -45,4 +45,52 @@ export class AuthController {
       }))
     );
   }
+ 
+
+  static async me(req: Request, res: Response) {
+    
+    res.json({
+      user: req.user
+    });
+  }
+
+  static async logout(req: Request, res: Response) {
+    res.clearCookie('access_token', {
+   httpOnly: true,
+   sameSite: 'strict',
+   secure: process.env.NODE_ENV === 'production'
+   });
+
+    res.json({ message: 'Sesión cerrada correctamente' });
+  }
+  static async selectEnvironment(req: Request, res: Response) {
+  const { environmentId } = req.body;
+  const userId = req.user!.userId;
+
+  if (!environmentId) {
+    return res.status(400).json({ message: 'environmentId requerido' });
+  }
+
+  const hasAccess = await AuthService.userHasEnvironment(
+    userId,
+    environmentId
+  );
+
+  if (!hasAccess) {
+    return res
+      .status(403)
+      .json({ message: 'Acceso denegado a este entorno' });
+  }
+
+  res.cookie('active_environment', environmentId, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production'
+  });
+
+  return res.json({ message: 'Entorno seleccionado correctamente' });
 }
+
+
+}
+

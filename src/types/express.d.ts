@@ -1,13 +1,16 @@
-import { Environment, Role } from '../auth/auth.types';
+import { Role } from '@prisma/client';
 
 declare global {
   namespace Express {
     interface Request {
       user?: {
         userId: string;
-        role?: Role;
+        email: string;
       };
-      environment?: Environment;
+      context?: {
+        environmentId: string;
+        role: Role;
+      };
     }
   }
 }
