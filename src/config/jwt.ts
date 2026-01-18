@@ -1,31 +1,32 @@
 import jwt, { SignOptions, JwtPayload } from 'jsonwebtoken';
+import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET!;
+if (!JWT_SECRET) throw new Error('JWT_SECRET no definido');
 
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET no definido');
-}
-
-
-export interface TokenPayload extends JwtPayload {
+export interface AccessTokenPayload extends JwtPayload {
   userId: string;
-  email?: string;
+  tokenVersion: number;
 }
 
-const signOptions: SignOptions = {
-  expiresIn: '15m'
+const accessOptions: SignOptions = {
+  expiresIn: '15m' 
 };
 
-export function signToken(payload: TokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET as string, signOptions);
+export function signAccessToken(payload: AccessTokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, accessOptions);
 }
 
-export function verifyToken(token: string): TokenPayload {
-  const decoded = jwt.verify(token, JWT_SECRET as string);
+export function verifyAccessToken(token: string): AccessTokenPayload {
+  const decoded = jwt.verify(token, JWT_SECRET);
 
   if (typeof decoded === 'string' || !decoded.userId) {
     throw new Error('Token inválido');
   }
 
-  return decoded as TokenPayload;
+  return decoded as AccessTokenPayload;
+}
+
+export function generateRefreshToken(): string {
+  return crypto.randomBytes(64).toString('hex');
 }

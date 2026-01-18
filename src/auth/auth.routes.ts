@@ -9,5 +9,6 @@ router.get('/environments', authenticate, AuthController.getEnvironments);
 router.get('/me', authenticate, AuthController.me);
 router.post('/logout', AuthController.logout);
 router.post('/select-environment',authenticate, AuthController.selectEnvironment);
+router.post('/refresh', AuthController.refresh);
 
 export default router;

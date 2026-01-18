@@ -24,8 +24,11 @@ model User {
   password  String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  tokenVersion Int @default(0)
 
   environments UserEnvironment[]
+  refreshTokens RefreshToken[] 
+  auditLogs    AuditLog[]
 }
 
 enum Role {
@@ -38,13 +41,42 @@ enum Role {
 
 
 model UserEnvironment {
-  id            String @id @default(uuid())
+  id            String   @id @default(uuid())
   userId        String
   environmentId String
   role          Role
+  isActive      Boolean  @default(true)
+  revokedAt     DateTime?
 
   user        User        @relation(fields: [userId], references: [id])
   environment Environment @relation(fields: [environmentId], references: [id])
 
   @@unique([userId, environmentId])
+}
+
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId   String
+  targetType String
+  targetId  String
+  action    String
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
 }

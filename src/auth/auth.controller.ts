@@ -3,48 +3,38 @@ import { AuthService } from './auth.service';
 import { roleEnvironmentAccess } from './permissions';
 import { Environment } from './auth.types';
 import { Role } from '@prisma/client';
+type UserEnvironmentDTO = {
+  id: string;
+  name: string;
+  role: Role;
+};
 
 export class AuthController {
   static async login(req: Request, res: Response) {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Datos incompletos' });
-    }
+  try {
+    const { accessToken, refreshToken } =
+      await AuthService.login(email, password);
 
-    try {
-      const token = await AuthService.login(email, password);
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production'
+    });
 
-      res.cookie('access_token', token, {
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: false // en prod true
-      });
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production'
+    });
 
-      return res.json({ message: 'Login exitoso' });
-    } catch {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
-    }
+    res.json({ message: 'Login exitoso' });
+  } catch {
+    res.status(401).json({ message: 'Credenciales inválidas' });
   }
+}
 
-  static async getEnvironments(req: Request, res: Response) {
-    const userId = req.user!.userId;
-
-    const environments = await AuthService.getUserEnvironments(userId);
-
-    const filtered = environments.filter(env =>
-      roleEnvironmentAccess[env.role as Role].includes(
-        env.name as Environment
-      )
-    );
-
-    return res.json(
-      filtered.map(env => ({
-        id: env.id,
-        name: env.name
-      }))
-    );
-  }
  
 
   static async me(req: Request, res: Response) {
@@ -55,14 +45,18 @@ export class AuthController {
   }
 
   static async logout(req: Request, res: Response) {
-    res.clearCookie('access_token', {
-   httpOnly: true,
-   sameSite: 'strict',
-   secure: process.env.NODE_ENV === 'production'
-   });
+  const token = req.cookies.refresh_token;
 
-    res.json({ message: 'Sesión cerrada correctamente' });
+  if (token) {
+    await AuthService.logout(token);
   }
+
+  res.clearCookie('access_token');
+  res.clearCookie('refresh_token');
+
+  res.json({ message: 'Sesión cerrada correctamente' });
+}
+
   static async selectEnvironment(req: Request, res: Response) {
   const { environmentId } = req.body;
   const userId = req.user!.userId;
@@ -90,7 +84,52 @@ export class AuthController {
 
   return res.json({ message: 'Entorno seleccionado correctamente' });
 }
+static async refresh(req: Request, res: Response) {
+  const token = req.cookies.refresh_token;
 
+  if (!token) {
+    return res.status(401).json({ message: 'No refresh token' });
+  }
+
+  try {
+    const { accessToken, refreshToken } =
+      await AuthService.refreshSession(token);
+
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production'
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production'
+    });
+
+    res.json({ message: 'Sesión renovada' });
+  } catch {
+    res.status(401).json({ message: 'Refresh inválido' });
+  }
+}
+static async getEnvironments(req: Request, res: Response) {
+    const userId = req.user!.userId;
+
+    const environments = await AuthService.getUserEnvironments(userId);
+
+    const filtered = environments.filter(env =>
+      roleEnvironmentAccess[env.role as Role].includes(
+        env.name as Environment
+      )
+    );
+
+    return res.json(
+      filtered.map(env => ({
+        id: env.id,
+        name: env.name
+      }))
+    );
+  }
 
 }
 

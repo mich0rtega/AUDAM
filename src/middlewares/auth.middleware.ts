@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../config/jwt';
+import { verifyAccessToken } from '../config/jwt';
+import { prisma } from '../config/prisma';
 
-export function authenticate(
+export async function authenticate(
   req: Request,
   res: Response,
   next: NextFunction
@@ -13,15 +14,27 @@ export function authenticate(
   }
 
   try {
-    const payload = verifyToken(token) as { userId: string; email: string };
+    const payload = verifyAccessToken(token);
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId }
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: 'Usuario inactivo' });
+    }
+
+    if (payload.tokenVersion !== user.tokenVersion) {
+      return res.status(401).json({ message: 'Token revocado' });
+    }
 
     req.user = {
-      userId: payload.userId,
-      email: payload.email
+      userId: user.id,
+      email: user.email
     };
 
     next();
-  } catch {
+  } catch (error) {
     return res.status(401).json({ message: 'Token inválido' });
   }
 }
