@@ -7,7 +7,7 @@ import { setEnvironment } from '../middlewares/environment.middleware';
 import { authorize } from '../middlewares/role.middleware';
 
 const router = Router();
-router.use(authenticate, setEnvironment, authorize(['ADMIN']));
+
 router.get(
   '/all',
   authenticate,

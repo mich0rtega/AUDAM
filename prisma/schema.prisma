@@ -3,8 +3,6 @@ generator client {
   binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
-
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -15,20 +13,36 @@ model Environment {
   name      String   @unique
   createdAt DateTime @default(now())
 
-  users     UserEnvironment[]
+  users               UserEnvironment[]
+  productTypes        ProductType[]
+  movementTypes       MovementType[]
+  productStatuses     ProductStatus[]
+  requisitionStatuses RequisitionStatus[]
+  costCenters         CostCenter[]
+  assetCategories     AssetCategory[]
+  providers           Provider[]
+
+  products     Product[]
+  requisitions Requisition[]
+  movements    Movement[]
+  assets       Asset[]
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  tokenVersion Int @default(0)
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  isActive     Boolean  @default(true)
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
 
-  environments UserEnvironment[]
-  refreshTokens RefreshToken[] 
-  auditLogs    AuditLog[]
+  environments          UserEnvironment[]
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]
+  requisitionsRequested Requisition[]     @relation("Solicitante")
+  requisitionsApproved  Requisition[]     @relation("Autorizador")
+  movements             Movement[]        @relation("MovementResponsible")
+  assets                Asset[]
 }
 
 enum Role {
@@ -39,13 +53,12 @@ enum Role {
   USUARIO
 }
 
-
 model UserEnvironment {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   userId        String
   environmentId String
   role          Role
-  isActive      Boolean  @default(true)
+  isActive      Boolean   @default(true)
   revokedAt     DateTime?
 
   user        User        @relation(fields: [userId], references: [id])
@@ -53,7 +66,6 @@ model UserEnvironment {
 
   @@unique([userId, environmentId])
 }
-
 
 model RefreshToken {
   id        String   @id @default(uuid())
@@ -70,13 +82,236 @@ model RefreshToken {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  actorId   String
+  actorId    String
   targetType String
-  targetId  String
-  action    String
-  oldValue  Json?
-  newValue  Json?
-  createdAt DateTime @default(now())
+  targetId   String
+  action     String
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
 
   actor User @relation(fields: [actorId], references: [id])
+}
+
+model ProductType {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  environmentId String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  environment Environment @relation(fields: [environmentId], references: [id])
+  products    Product[]
+
+  @@unique([name, environmentId])
+}
+
+enum MovementDirection {
+  IN
+  OUT
+}
+
+model MovementType {
+  id            String            @id @default(uuid())
+  name          String
+  direction     MovementDirection
+  environmentId String
+  isActive      Boolean           @default(true)
+
+  environment Environment @relation(fields: [environmentId], references: [id])
+  movements   Movement[]
+
+  @@unique([name, environmentId])
+}
+
+model ProductStatus {
+  id            String  @id @default(uuid())
+  name          String
+  environmentId String
+  isActive      Boolean @default(true)
+
+  environment Environment @relation(fields: [environmentId], references: [id])
+  products    Product[]
+  assets      Asset[]
+
+  @@unique([name, environmentId])
+}
+
+model RequisitionStatus {
+  id            String  @id @default(uuid())
+  name          String
+  environmentId String
+  isActive      Boolean @default(true)
+
+  environment  Environment   @relation(fields: [environmentId], references: [id])
+  requisitions Requisition[]
+
+  @@unique([name, environmentId])
+}
+
+model CostCenter {
+  id            String  @id @default(uuid())
+  name          String
+  code          String?
+  environmentId String
+  isActive      Boolean @default(true)
+
+  environment Environment @relation(fields: [environmentId], references: [id])
+  movements   Movement[]
+
+  @@unique([name, environmentId])
+}
+
+model AssetCategory {
+  id            String  @id @default(uuid())
+  name          String
+  environmentId String
+  isActive      Boolean @default(true)
+
+  environment Environment @relation(fields: [environmentId], references: [id])
+  assets      Asset[]
+
+  @@unique([name, environmentId])
+}
+
+model Provider {
+  id            String @id @default(uuid())
+  environmentId String
+
+  nombre    String
+  contacto  String?
+  telefono  String?
+  email     String?
+  direccion String?
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  environment Environment @relation(fields: [environmentId], references: [id])
+  products    Product[]
+
+  @@unique([nombre, environmentId])
+}
+
+model Product {
+  id            String @id @default(uuid())
+  environmentId String
+
+  typeId      String
+  statusId    String
+  proveedorId String?
+
+  marca          String
+  modelo         String?
+  especificacion String?
+  imagenUrl      String?
+
+  precioUnitario Decimal @db.Decimal(10, 2)
+  stockActual    Int
+
+  fechaUltimaCompra DateTime?
+  createdAt         DateTime  @default(now())
+
+  environment      Environment       @relation(fields: [environmentId], references: [id])
+  type             ProductType       @relation(fields: [typeId], references: [id])
+  status           ProductStatus     @relation(fields: [statusId], references: [id])
+  proveedor        Provider?         @relation(fields: [proveedorId], references: [id])
+  requisitionItems RequisitionItem[]
+  movements        Movement[]
+}
+
+model Requisition {
+  id            String @id @default(uuid())
+  folio         Int
+  environmentId String
+
+  solicitanteId   String
+  autorizadoPorId String?
+  statusId        String
+
+  area            String
+  tipoRequisicion String
+  fecha           DateTime @default(now())
+
+  comentarios   String?
+  cargoCamion   String?
+  numCamionEta  String?
+  chofer        String?
+  descripcionOs String?
+
+  createdAt DateTime @default(now())
+
+  environment Environment       @relation(fields: [environmentId], references: [id])
+  solicitante User              @relation("Solicitante", fields: [solicitanteId], references: [id])
+  autorizador User?             @relation("Autorizador", fields: [autorizadoPorId], references: [id])
+  status      RequisitionStatus @relation(fields: [statusId], references: [id])
+
+  items     RequisitionItem[]
+  movements Movement[]
+
+  @@unique([folio, environmentId])
+}
+
+model RequisitionItem {
+  id            String  @id @default(uuid())
+  requisitionId String
+  productId     String
+  quantity      Int
+  unitPrice     Decimal @db.Decimal(10, 2)
+
+  requisition Requisition @relation(fields: [requisitionId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@unique([requisitionId, productId])
+}
+
+model Movement {
+  id            String @id @default(uuid())
+  environmentId String
+
+  typeId        String
+  productId     String
+  requisitionId String?
+
+  quantity      Int
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  fecha         DateTime @default(now())
+  observaciones String?
+
+  responsibleId String
+  costCenterId  String
+
+  environment Environment  @relation(fields: [environmentId], references: [id])
+  type        MovementType @relation(fields: [typeId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  requisition Requisition? @relation(fields: [requisitionId], references: [id])
+  responsible User         @relation("MovementResponsible", fields: [responsibleId], references: [id])
+  costCenter  CostCenter   @relation(fields: [costCenterId], references: [id])
+
+  @@index([environmentId])
+  @@index([fecha])
+}
+
+model Asset {
+  id            String @id @default(uuid())
+  environmentId String
+
+  categoryId    String
+  statusId      String
+  responsableId String
+
+  marca       String
+  modelo      String?
+  numeroSerie String?
+  ubicacion   String?
+  imagenUrl   String?
+
+  stockActual Int?
+  createdAt   DateTime @default(now())
+
+  environment Environment   @relation(fields: [environmentId], references: [id])
+  category    AssetCategory @relation(fields: [categoryId], references: [id])
+  status      ProductStatus @relation(fields: [statusId], references: [id])
+  responsable User          @relation(fields: [responsableId], references: [id])
 }

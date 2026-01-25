@@ -8,19 +8,16 @@ import usersRoutes from './users/users.routes';
 const app = express();
 
 
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 
-
-
-app.use(
-  cors({
-    origin: 'http://localhost:3000',
-    credentials: true
-  })
-);
 
 export default app;
