@@ -35,4 +35,23 @@ router.patch(
   AssetsController.changeStatus
 );
 
+router.get(
+  '/:id',
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  AssetsController.getById
+);
+
+router.post(
+  '/:id/transfer',
+  businessRoute([Role.ADMIN]),
+  AssetsController.transfer
+);
+
+router.get(
+  '/:id/history',
+  businessRoute([Role.ADMIN]),
+  AssetsController.history
+);
+
+
 export default router;

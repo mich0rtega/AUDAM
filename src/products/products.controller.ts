@@ -71,5 +71,26 @@ static async enable(req: Request, res: Response) {
   res.json(product);
 }
 
+static async adjustStock(req: Request, res: Response) {
+  const result = await ProductsService.adjustStock(
+    req.context!.environmentId,
+    req.params.id,
+    req.body,
+    req.user!.userId
+  );
+  res.status(201).json(result);
+}
+
+static async changePrice(req: Request, res: Response) {
+  const product = await ProductsService.changePrice(
+    req.context!.environmentId,
+    req.params.id,
+    req.body.precioUnitario,
+    req.user!.userId
+  );
+  res.json(product);
+}
+
+
 }
 

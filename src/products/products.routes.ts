@@ -53,5 +53,26 @@ router.patch(
   ProductsController.enable
 );
 
+// Producto individual 
+router.get(
+  '/:id',
+  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  ProductsController.getById
+);
+
+// Ajuste manual de inventario
+router.post(
+  '/:id/adjust-stock',
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  ProductsController.adjustStock
+);
+
+// Cambio de precio controlado
+router.patch(
+  '/:id/price',
+  businessRoute([Role.ADMIN, Role.COMPRAS]),
+  ProductsController.changePrice
+);
+
 
 export default router;

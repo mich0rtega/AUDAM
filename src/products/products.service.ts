@@ -185,4 +185,94 @@ export class ProductsService {
       orderBy: { fecha: 'desc' }
     });
   }
+  static async adjustStock(
+  environmentId: string,
+  productId: string,
+  dto: {
+    quantity: number;
+    typeId: string;
+    costCenterId: string;
+    reason?: string;
+  },
+  actorId: string
+) {
+  return prisma.$transaction(async tx => {
+    const product = await tx.product.findFirst({
+      where: { id: productId, environmentId }
+    });
+
+    if (!product) throw new Error('Producto no encontrado');
+
+    const newStock = product.stockActual + dto.quantity;
+
+    if (newStock < 0) {
+      throw new Error('Stock insuficiente');
+    }
+
+    await tx.movement.create({
+      data: {
+        environmentId,
+        productId,
+        typeId: dto.typeId,
+        quantity: Math.abs(dto.quantity),
+        unitPrice: product.precioUnitario,
+        responsibleId: actorId,
+        costCenterId: dto.costCenterId,
+        observaciones: dto.reason
+      }
+    });
+
+    const updated = await tx.product.update({
+      where: { id: productId },
+      data: { stockActual: newStock }
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId,
+        action: 'PRODUCT_STOCK_ADJUSTED',
+        targetType: 'Product',
+        targetId: productId
+      }
+    });
+
+    return updated;
+  });
+}
+
+static async changePrice(
+  environmentId: string,
+  id: string,
+  precioUnitario: number,
+  actorId: string
+) {
+  if (precioUnitario <= 0) {
+    throw new Error('Precio inválido');
+  }
+
+  const product = await prisma.product.findFirst({
+    where: { id, environmentId }
+  });
+
+  if (!product) throw new Error('Producto no encontrado');
+
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { precioUnitario }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'PRODUCT_PRICE_CHANGED',
+      targetType: 'Product',
+      targetId: id,
+      oldValue: { precioUnitario: product.precioUnitario },
+      newValue: { precioUnitario }
+    }
+  });
+
+  return updated;
+}
+
 }

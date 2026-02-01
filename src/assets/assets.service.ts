@@ -131,5 +131,63 @@ export class AssetsService {
 
     return updated;
   }
+  static async getById(environmentId: string, id: string) {
+  const asset = await prisma.asset.findFirst({
+    where: { id, environmentId },
+    include: {
+      category: true,
+      status: true,
+      responsable: true
+    }
+  });
+
+  if (!asset) throw new Error('Activo no encontrado');
+  return asset;
+}
+
+static async transfer(
+  environmentId: string,
+  id: string,
+  dto: {
+    responsableId: string;
+    ubicacion?: string;
+  },
+  actorId: string
+) {
+  const asset = await prisma.asset.findFirst({
+    where: { id, environmentId }
+  });
+
+  if (!asset) throw new Error('Activo no encontrado');
+
+  const updated = await prisma.asset.update({
+    where: { id },
+    data: {
+      responsableId: dto.responsableId,
+      ubicacion: dto.ubicacion ?? asset.ubicacion
+    }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'ASSET_TRANSFERRED',
+      targetType: 'Asset',
+      targetId: id
+    }
+  });
+
+  return updated;
+}
+
+static async history(assetId: string) {
+  return prisma.auditLog.findMany({
+    where: {
+      targetType: 'Asset',
+      targetId: assetId
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+}
 
 }

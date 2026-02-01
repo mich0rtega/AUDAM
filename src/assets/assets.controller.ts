@@ -46,4 +46,28 @@ export class AssetsController {
     );
     res.json(asset);
   }
+
+  static async getById(req: Request, res: Response) {
+  const asset = await AssetsService.getById(
+    req.context!.environmentId,
+    req.params.id
+  );
+  res.json(asset);
+}
+
+static async transfer(req: Request, res: Response) {
+  const asset = await AssetsService.transfer(
+    req.context!.environmentId,
+    req.params.id,
+    req.body,
+    req.user!.userId
+  );
+  res.json(asset);
+}
+
+static async history(req: Request, res: Response) {
+  const history = await AssetsService.history(req.params.id);
+  res.json(history);
+}
+
 }
