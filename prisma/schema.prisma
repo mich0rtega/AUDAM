@@ -210,6 +210,8 @@ model Product {
   precioUnitario Decimal @db.Decimal(10, 2)
   stockActual    Int
 
+  isActive Boolean @default(true) 
+
   fechaUltimaCompra DateTime?
   createdAt         DateTime  @default(now())
 
@@ -220,6 +222,7 @@ model Product {
   requisitionItems RequisitionItem[]
   movements        Movement[]
 }
+
 
 model Requisition {
   id            String @id @default(uuid())
