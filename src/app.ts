@@ -9,7 +9,8 @@ import productsRoutes from './products/products.routes';
 import assetsRoutes from './assets/assets.routes';
 import requisitionsRoutes from './requisitions/requisitions.routes';
 import movementsRoutes from './movements/movements.routes';
-
+import providersRoutes from './providers/providers.routes';
+import dashboardRoutes from './dashboard/dashboard.routes';
 
 
 const app = express();
@@ -31,6 +32,8 @@ app.use('/products', productsRoutes);
 app.use('/assets', assetsRoutes);
 app.use('/requisitions', requisitionsRoutes);
 app.use('/movements', movementsRoutes);
+app.use('/providers', providersRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 
 
