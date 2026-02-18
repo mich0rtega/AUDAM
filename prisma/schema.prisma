@@ -8,6 +8,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
+
 model Environment {
   id        String   @id @default(uuid())
   name      String   @unique
@@ -23,10 +25,12 @@ model Environment {
   providers           Provider[]
 
   products     Product[]
-  requisitions Requisition[]
-  movements    Movement[]
   assets       Asset[]
+  movements    Movement[]
+  requisitions Requisition[]
 }
+
+
 
 model User {
   id           String   @id @default(uuid())
@@ -36,13 +40,14 @@ model User {
   tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
 
-  environments          UserEnvironment[]
-  refreshTokens         RefreshToken[]
-  auditLogs             AuditLog[]
-  requisitionsRequested Requisition[]     @relation("Solicitante")
-  requisitionsApproved  Requisition[]     @relation("Autorizador")
-  movements             Movement[]        @relation("MovementResponsible")
-  assets                Asset[]
+  environments  UserEnvironment[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  assets        Asset[]
+  movements     Movement[]
+  requisitions  Requisition[]      @relation("RequesterRequisitions")
+  authorizedRequisitions Requisition[] @relation("AuthorizerRequisitions")
 }
 
 enum Role {
@@ -54,11 +59,11 @@ enum Role {
 }
 
 model UserEnvironment {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   userId        String
   environmentId String
   role          Role
-  isActive      Boolean   @default(true)
+  isActive      Boolean  @default(true)
   revokedAt     DateTime?
 
   user        User        @relation(fields: [userId], references: [id])
@@ -92,6 +97,8 @@ model AuditLog {
 
   actor User @relation(fields: [actorId], references: [id])
 }
+
+
 
 model ProductType {
   id            String   @id @default(uuid())
@@ -144,7 +151,7 @@ model RequisitionStatus {
   environmentId String
   isActive      Boolean @default(true)
 
-  environment  Environment   @relation(fields: [environmentId], references: [id])
+  environment Environment @relation(fields: [environmentId], references: [id])
   requisitions Requisition[]
 
   @@unique([name, environmentId])
@@ -157,8 +164,9 @@ model CostCenter {
   environmentId String
   isActive      Boolean @default(true)
 
-  environment Environment @relation(fields: [environmentId], references: [id])
-  movements   Movement[]
+  environment  Environment    @relation(fields: [environmentId], references: [id])
+  movements    Movement[]
+  requisitions Requisition[]
 
   @@unique([name, environmentId])
 }
@@ -194,6 +202,8 @@ model Provider {
   @@unique([nombre, environmentId])
 }
 
+
+
 model Product {
   id            String @id @default(uuid())
   environmentId String
@@ -206,94 +216,26 @@ model Product {
   modelo         String?
   especificacion String?
   imagenUrl      String?
+  
+  // Campos restaurados
+  sku  String?
+  unit String?
 
   precioUnitario Decimal @db.Decimal(10, 2)
   stockActual    Int
 
-  isActive Boolean @default(true) 
+  isActive Boolean @default(true)
 
   fechaUltimaCompra DateTime?
-  createdAt         DateTime  @default(now())
+  createdAt         DateTime @default(now())
 
-  environment      Environment       @relation(fields: [environmentId], references: [id])
-  type             ProductType       @relation(fields: [typeId], references: [id])
-  status           ProductStatus     @relation(fields: [statusId], references: [id])
-  proveedor        Provider?         @relation(fields: [proveedorId], references: [id])
-  requisitionItems RequisitionItem[]
-  movements        Movement[]
-}
+  environment Environment   @relation(fields: [environmentId], references: [id])
+  type        ProductType   @relation(fields: [typeId], references: [id])
+  status      ProductStatus @relation(fields: [statusId], references: [id])
+  proveedor   Provider?     @relation(fields: [proveedorId], references: [id])
 
-
-model Requisition {
-  id            String @id @default(uuid())
-  folio         Int
-  environmentId String
-
-  solicitanteId   String
-  autorizadoPorId String?
-  statusId        String
-
-  area            String
-  tipoRequisicion String
-  fecha           DateTime @default(now())
-
-  comentarios   String?
-  cargoCamion   String?
-  numCamionEta  String?
-  chofer        String?
-  descripcionOs String?
-
-  createdAt DateTime @default(now())
-
-  environment Environment       @relation(fields: [environmentId], references: [id])
-  solicitante User              @relation("Solicitante", fields: [solicitanteId], references: [id])
-  autorizador User?             @relation("Autorizador", fields: [autorizadoPorId], references: [id])
-  status      RequisitionStatus @relation(fields: [statusId], references: [id])
-
-  items     RequisitionItem[]
-  movements Movement[]
-
-  @@unique([folio, environmentId])
-}
-
-model RequisitionItem {
-  id            String  @id @default(uuid())
-  requisitionId String
-  productId     String
-  quantity      Int
-  unitPrice     Decimal @db.Decimal(10, 2)
-
-  requisition Requisition @relation(fields: [requisitionId], references: [id])
-  product     Product     @relation(fields: [productId], references: [id])
-
-  @@unique([requisitionId, productId])
-}
-
-model Movement {
-  id            String @id @default(uuid())
-  environmentId String
-
-  typeId        String
-  productId     String
-  requisitionId String?
-
-  quantity      Int
-  unitPrice     Decimal  @db.Decimal(10, 2)
-  fecha         DateTime @default(now())
-  observaciones String?
-
-  responsibleId String
-  costCenterId  String
-
-  environment Environment  @relation(fields: [environmentId], references: [id])
-  type        MovementType @relation(fields: [typeId], references: [id])
-  product     Product      @relation(fields: [productId], references: [id])
-  requisition Requisition? @relation(fields: [requisitionId], references: [id])
-  responsible User         @relation("MovementResponsible", fields: [responsibleId], references: [id])
-  costCenter  CostCenter   @relation(fields: [costCenterId], references: [id])
-
-  @@index([environmentId])
-  @@index([fecha])
+  movementDetails     MovementDetail[]
+  requisitionDetails  RequisitionDetail[]
 }
 
 model Asset {
@@ -317,4 +259,91 @@ model Asset {
   category    AssetCategory @relation(fields: [categoryId], references: [id])
   status      ProductStatus @relation(fields: [statusId], references: [id])
   responsable User          @relation(fields: [responsableId], references: [id])
+}
+
+
+model Movement {
+  id            String   @id @default(uuid())
+  environmentId String
+
+  typeId        String
+  responsibleId String
+  costCenterId  String?
+
+  observations String?
+  createdAt    DateTime @default(now())
+
+  environment Environment  @relation(fields: [environmentId], references: [id])
+  type        MovementType @relation(fields: [typeId], references: [id])
+  responsible User         @relation(fields: [responsibleId], references: [id])
+  costCenter  CostCenter?  @relation(fields: [costCenterId], references: [id])
+
+  details MovementDetail[]
+
+  @@index([environmentId])
+  @@index([createdAt])
+}
+
+model MovementDetail {
+  id         String @id @default(uuid())
+  movementId String
+  productId  String
+
+  quantity     Int
+  unitPrice    Decimal @db.Decimal(10, 2)
+  observations String?
+
+  movement Movement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@index([movementId])
+  @@index([productId])
+}
+
+
+
+model Requisition {
+  id            String   @id @default(uuid())
+  environmentId String
+
+  // Campos restaurados
+  folio         String   @unique
+  solicitorId   String
+  solicitorName String
+  destinationId String
+  authorizerId  String?
+  
+  requesterId String
+  statusId    String
+
+  observations String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  environment Environment       @relation(fields: [environmentId], references: [id])
+  requester   User              @relation("RequesterRequisitions", fields: [requesterId], references: [id])
+  status      RequisitionStatus @relation(fields: [statusId], references: [id])
+  destination CostCenter        @relation(fields: [destinationId], references: [id])
+  authorizer  User?             @relation("AuthorizerRequisitions", fields: [authorizerId], references: [id])
+
+  details RequisitionDetail[]
+
+  @@index([environmentId])
+  @@index([createdAt])
+}
+
+model RequisitionDetail {
+  id            String @id @default(uuid())
+  requisitionId String
+  productId     String
+
+  quantity Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  notes    String?
+
+  requisition Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@index([requisitionId])
+  @@index([productId])
 }

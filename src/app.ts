@@ -7,6 +7,9 @@ import catalogRoutes from './catalog/catalog.routes';
 import costCenterRoutes from './cost-centers/cost-centers.routes';
 import productsRoutes from './products/products.routes';
 import assetsRoutes from './assets/assets.routes';
+import requisitionsRoutes from './requisitions/requisitions.routes';
+import movementsRoutes from './movements/movements.routes';
+
 
 
 const app = express();
@@ -26,6 +29,9 @@ app.use('/catalog', catalogRoutes);
 app.use('/cost-centers', costCenterRoutes);
 app.use('/products', productsRoutes);
 app.use('/assets', assetsRoutes);
+app.use('/requisitions', requisitionsRoutes);
+app.use('/movements', movementsRoutes);
+
 
 
 export default app;

@@ -158,14 +158,21 @@ export class ProductsService {
       await tx.movement.create({
         data: {
           environmentId,
-          productId,
           typeId: dto.typeId,
-          quantity: dto.quantity,
-          unitPrice: dto.unitPrice,
           responsibleId: actorId,
-          costCenterId: dto.costCenterId
+          costCenterId: dto.costCenterId,
+          observations: dto.observations,
+          details: {
+            create: {
+              productId: productId,  
+              quantity: dto.quantity,
+              unitPrice: dto.unitPrice,
+              observations: dto.observations
+            }
+          }
         }
       });
+
 
       return tx.product.update({
         where: { id: productId },
@@ -176,13 +183,34 @@ export class ProductsService {
 
   static listMovements(environmentId: string, productId: string) {
     return prisma.movement.findMany({
-      where: { environmentId, productId },
+      where: {
+        environmentId,
+        details: {
+          some: {
+            productId: productId 
+          }
+        }
+      },
       include: {
         type: true,
         responsible: true,
-        costCenter: true
+        costCenter: true,
+        details: {
+          where: {
+            productId: productId
+          },
+          include: {
+            product: {
+              select: {
+                marca: true,
+                modelo: true,
+                sku: true
+              }
+            }
+          }
+        }
       },
-      orderBy: { fecha: 'desc' }
+      orderBy: { createdAt: 'desc' } 
     });
   }
   static async adjustStock(
@@ -212,13 +240,18 @@ export class ProductsService {
     await tx.movement.create({
       data: {
         environmentId,
-        productId,
         typeId: dto.typeId,
-        quantity: Math.abs(dto.quantity),
-        unitPrice: product.precioUnitario,
         responsibleId: actorId,
         costCenterId: dto.costCenterId,
-        observaciones: dto.reason
+        observations: dto.reason,
+        details: {
+          create: {
+            productId: productId, 
+            quantity: Math.abs(dto.quantity),
+            unitPrice: product.precioUnitario,
+            observations: dto.reason
+          }
+        }
       }
     });
 
