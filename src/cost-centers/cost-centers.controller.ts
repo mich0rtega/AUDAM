@@ -21,13 +21,14 @@ export class CostCentersController {
     }
 
     const created =
-      await CostCentersService.create(environmentId, name, code);
+      await CostCentersService.create(environmentId, name, code, req.user!.userId);
 
     res.status(201).json(created);
   }
 
   static async toggle(req: Request, res: Response) {
-    await CostCentersService.toggle(req.params.id);
+    const environmentId = req.context!.environmentId;
+    await CostCentersService.toggle(environmentId, req.params.id, req.user!.userId);
     res.json({ message: 'Estado actualizado' });
   }
 

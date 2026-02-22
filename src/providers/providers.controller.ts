@@ -26,7 +26,8 @@ export class ProvidersController {
 
     const created = await ProvidersService.create(
       req.context!.environmentId,
-      { nombre, contacto, telefono, email, direccion }
+      { nombre, contacto, telefono, email, direccion },
+      req.user!.userId
     );
 
     res.status(201).json(created);
@@ -36,7 +37,8 @@ export class ProvidersController {
     const updated = await ProvidersService.update(
       req.context!.environmentId,
       req.params.id,
-      req.body
+      req.body,
+      req.user!.userId
     );
 
     res.json(updated);
@@ -45,7 +47,8 @@ export class ProvidersController {
   static async toggle(req: Request, res: Response) {
     const updated = await ProvidersService.toggle(
       req.context!.environmentId,
-      req.params.id
+      req.params.id,
+      req.user!.userId
     );
 
     res.json(updated);

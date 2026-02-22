@@ -53,7 +53,7 @@ export class MovementsService {
   }
 
   
-  async create(dto: CreateMovementDto, environmentId: string) {
+  async create(dto: CreateMovementDto, environmentId: string, actorId: string) {
     return prisma.$transaction(async (tx) => {
       const movement = await tx.movement.create({
         data: {
@@ -85,6 +85,21 @@ export class MovementsService {
         }
       });
 
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'MOVEMENT_CREATED',
+          targetType: 'Movement',
+          targetId: movement.id,
+          newValue: {
+            typeId: movement.typeId,
+            responsibleId: movement.responsibleId,
+            costCenterId: movement.costCenterId,
+            detailsCount: movement.details.length
+          }
+        }
+      });
+
       return movement;
     });
   }
@@ -93,7 +108,8 @@ export class MovementsService {
   async update(
     id: string,
     dto: UpdateMovementDto,
-    environmentId: string
+    environmentId: string,
+    actorId: string
   ) {
     return prisma.$transaction(async (tx) => {
 
@@ -127,12 +143,33 @@ export class MovementsService {
         }
       });
 
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'MOVEMENT_UPDATED',
+          targetType: 'Movement',
+          targetId: id,
+          oldValue: {
+            typeId: exists.typeId,
+            responsibleId: exists.responsibleId,
+            costCenterId: exists.costCenterId,
+            observations: exists.observations
+          },
+          newValue: {
+            typeId: movement.typeId,
+            responsibleId: movement.responsibleId,
+            costCenterId: movement.costCenterId,
+            observations: movement.observations
+          }
+        }
+      });
+
       return movement;
     });
   }
 
 
-  async remove(id: string, environmentId: string) {
+  async remove(id: string, environmentId: string, actorId: string) {
     const exists = await prisma.movement.findFirst({
       where: { id, environmentId }
     });
@@ -142,12 +179,25 @@ export class MovementsService {
     }
 
 
-    return prisma.movement.update({
+    const movement = await prisma.movement.update({
       where: { id },
       data: {
         observations: '[ELIMINADO] ' + (exists.observations ?? '')
       }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'MOVEMENT_REMOVED',
+        targetType: 'Movement',
+        targetId: id,
+        oldValue: { observations: exists.observations },
+        newValue: { observations: movement.observations }
+      }
+    });
+
+    return movement;
   }
 
   async getEnvironmentName(id: string) {

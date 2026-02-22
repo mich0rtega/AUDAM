@@ -20,13 +20,13 @@ export class CatalogController {
     }
 
     const data =
-      await CatalogService.createProductType(environmentId, name, description);
+      await CatalogService.createProductType(environmentId, name, description, req.user!.userId);
 
     res.status(201).json(data);
   }
 
   static async toggleProductType(req: Request, res: Response) {
-    await CatalogService.toggle('productType', req.params.id);
+    await CatalogService.toggle('productType', req.params.id, req.user!.userId);
     res.json({ message: 'Estado actualizado' });
   }
 
@@ -47,12 +47,12 @@ export class CatalogController {
     }
 
     res.status(201).json(
-      await CatalogService.createProductStatus(environmentId, name)
+      await CatalogService.createProductStatus(environmentId, name, req.user!.userId)
     );
   }
 
   static async toggleProductStatus(req: Request, res: Response) {
-    await CatalogService.toggle('productStatus', req.params.id);
+    await CatalogService.toggle('productStatus', req.params.id, req.user!.userId);
     res.json({ message: 'Estado actualizado' });
   }
 
@@ -76,13 +76,14 @@ export class CatalogController {
       await CatalogService.createMovementType(
         environmentId,
         name,
-        direction
+        direction,
+        req.user!.userId
       )
     );
   }
 
   static async toggleMovementType(req: Request, res: Response) {
-    await CatalogService.toggle('movementType', req.params.id);
+    await CatalogService.toggle('movementType', req.params.id, req.user!.userId);
     res.json({ message: 'Estado actualizado' });
   }
 
@@ -103,12 +104,12 @@ export class CatalogController {
     }
 
     res.status(201).json(
-      await CatalogService.createAssetCategory(environmentId, name)
+      await CatalogService.createAssetCategory(environmentId, name, req.user!.userId)
     );
   }
 
   static async toggleAssetCategory(req: Request, res: Response) {
-    await CatalogService.toggle('assetCategory', req.params.id);
+    await CatalogService.toggle('assetCategory', req.params.id, req.user!.userId);
     res.json({ message: 'Estado actualizado' });
   }
 
@@ -124,12 +125,12 @@ export class CatalogController {
     const environmentId = req.context!.environmentId;
 
     res.status(201).json(
-      await CatalogService.createProvider(environmentId, req.body)
+      await CatalogService.createProvider(environmentId, req.body, req.user!.userId)
     );
   }
 
   static async toggleProvider(req: Request, res: Response) {
-    await CatalogService.toggle('provider', req.params.id);
+    await CatalogService.toggle('provider', req.params.id, req.user!.userId);
     res.json({ message: 'Estado actualizado' });
   }
 

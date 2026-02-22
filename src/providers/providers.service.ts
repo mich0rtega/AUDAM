@@ -21,7 +21,7 @@ export class ProvidersService {
     return provider;
   }
 
-  static create(
+  static async create(
     environmentId: string,
     data: {
       nombre: string;
@@ -29,9 +29,10 @@ export class ProvidersService {
       telefono?: string;
       email?: string;
       direccion?: string;
-    }
+    },
+    actorId: string
   ) {
-    return prisma.provider.create({
+    const provider = await prisma.provider.create({
       data: {
         environmentId,
         nombre: data.nombre,
@@ -41,6 +42,18 @@ export class ProvidersService {
         direccion: data.direccion
       }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'PROVIDER_CREATED',
+        targetType: 'Provider',
+        targetId: provider.id,
+        newValue: provider
+      }
+    });
+
+    return provider;
   }
 
   static async update(
@@ -53,7 +66,8 @@ export class ProvidersService {
       email?: string;
       direccion?: string;
       isActive?: boolean;
-    }
+    },
+    actorId: string
   ) {
     const existing = await prisma.provider.findFirst({
       where: { id, environmentId }
@@ -63,13 +77,26 @@ export class ProvidersService {
       throw new Error('Proveedor no encontrado');
     }
 
-    return prisma.provider.update({
+    const provider = await prisma.provider.update({
       where: { id },
       data
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'PROVIDER_UPDATED',
+        targetType: 'Provider',
+        targetId: id,
+        oldValue: existing,
+        newValue: provider
+      }
+    });
+
+    return provider;
   }
 
-  static async toggle(environmentId: string, id: string) {
+  static async toggle(environmentId: string, id: string, actorId: string) {
     const existing = await prisma.provider.findFirst({
       where: { id, environmentId }
     });
@@ -78,12 +105,25 @@ export class ProvidersService {
       throw new Error('Proveedor no encontrado');
     }
 
-    return prisma.provider.update({
+    const provider = await prisma.provider.update({
       where: { id },
       data: {
         isActive: !existing.isActive
       }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: provider.isActive ? 'PROVIDER_ENABLED' : 'PROVIDER_DISABLED',
+        targetType: 'Provider',
+        targetId: id,
+        oldValue: { isActive: existing.isActive },
+        newValue: { isActive: provider.isActive }
+      }
+    });
+
+    return provider;
   }
 
 }

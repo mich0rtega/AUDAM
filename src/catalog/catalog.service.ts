@@ -1,6 +1,14 @@
 import { prisma } from '../config/prisma';
 import { MovementDirection } from '@prisma/client';
 
+const TARGET_TYPE_BY_MODEL: Record<string, string> = {
+  productType: 'ProductType',
+  productStatus: 'ProductStatus',
+  movementType: 'MovementType',
+  assetCategory: 'AssetCategory',
+  provider: 'Provider'
+};
+
 export class CatalogService {
 
 
@@ -11,15 +19,29 @@ static async toggle(
     | 'movementType'
     | 'assetCategory'
     | 'provider',
-  id: string
+  id: string,
+  actorId: string
 ) {
   const current = await (prisma as any)[model].findUnique({ where: { id } });
   if (!current) throw new Error('No encontrado');
 
-  return (prisma as any)[model].update({
+  const updated = await (prisma as any)[model].update({
     where: { id },
     data: { isActive: !current.isActive }
   });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: updated.isActive ? `${model.toUpperCase()}_ENABLED` : `${model.toUpperCase()}_DISABLED`,
+      targetType: TARGET_TYPE_BY_MODEL[model],
+      targetId: id,
+      oldValue: { isActive: current.isActive },
+      newValue: { isActive: updated.isActive }
+    }
+  });
+
+  return updated;
 }
 
 
@@ -30,14 +52,27 @@ static listProductTypes(environmentId: string) {
   });
 }
 
-static createProductType(
+static async createProductType(
   environmentId: string,
   name: string,
-  description?: string
+  description: string | undefined,
+  actorId: string
 ) {
-  return prisma.productType.create({
+  const productType = await prisma.productType.create({
     data: { name, description, environmentId }
   });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'PRODUCT_TYPE_CREATED',
+      targetType: 'ProductType',
+      targetId: productType.id,
+      newValue: productType
+    }
+  });
+
+  return productType;
 }
 
 
@@ -48,10 +83,22 @@ static listProductStatus(environmentId: string) {
   });
 }
 
-static createProductStatus(environmentId: string, name: string) {
-  return prisma.productStatus.create({
+static async createProductStatus(environmentId: string, name: string, actorId: string) {
+  const productStatus = await prisma.productStatus.create({
     data: { name, environmentId }
   });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'PRODUCT_STATUS_CREATED',
+      targetType: 'ProductStatus',
+      targetId: productStatus.id,
+      newValue: productStatus
+    }
+  });
+
+  return productStatus;
 }
 
 
@@ -62,14 +109,27 @@ static listMovementTypes(environmentId: string) {
   });
 }
 
-static createMovementType(
+static async createMovementType(
   environmentId: string,
   name: string,
-  direction: MovementDirection
+  direction: MovementDirection,
+  actorId: string
 ) {
-  return prisma.movementType.create({
+  const movementType = await prisma.movementType.create({
     data: { name, direction, environmentId }
   });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'MOVEMENT_TYPE_CREATED',
+      targetType: 'MovementType',
+      targetId: movementType.id,
+      newValue: movementType
+    }
+  });
+
+  return movementType;
 }
 
 
@@ -80,10 +140,22 @@ static listAssetCategories(environmentId: string) {
   });
 }
 
-static createAssetCategory(environmentId: string, name: string) {
-  return prisma.assetCategory.create({
+static async createAssetCategory(environmentId: string, name: string, actorId: string) {
+  const assetCategory = await prisma.assetCategory.create({
     data: { name, environmentId }
   });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'ASSET_CATEGORY_CREATED',
+      targetType: 'AssetCategory',
+      targetId: assetCategory.id,
+      newValue: assetCategory
+    }
+  });
+
+  return assetCategory;
 }
 
 
@@ -94,8 +166,8 @@ static listProviders(environmentId: string) {
   });
 }
 
-static createProvider(environmentId: string, data: any) {
-  return prisma.provider.create({
+static async createProvider(environmentId: string, data: any, actorId: string) {
+  const provider = await prisma.provider.create({
     data: {
       environmentId,
       nombre: data.nombre,
@@ -105,6 +177,18 @@ static createProvider(environmentId: string, data: any) {
       direccion: data.direccion
     }
   });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId,
+      action: 'PROVIDER_CREATED',
+      targetType: 'Provider',
+      targetId: provider.id,
+      newValue: provider
+    }
+  });
+
+  return provider;
 }
 
 }

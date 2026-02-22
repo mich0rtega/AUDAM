@@ -9,33 +9,59 @@ export class CostCentersService {
     });
   }
 
-  static create(
+  static async create(
     environmentId: string,
     name: string,
-    code?: string
+    code: string | undefined,
+    actorId: string
   ) {
-    return prisma.costCenter.create({
+    const costCenter = await prisma.costCenter.create({
       data: {
         name,
         code,
         environmentId
       }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'COST_CENTER_CREATED',
+        targetType: 'CostCenter',
+        targetId: costCenter.id,
+        newValue: costCenter
+      }
+    });
+
+    return costCenter;
   }
 
-  static async toggle(id: string) {
-    const current = await prisma.costCenter.findUnique({
-      where: { id }
+  static async toggle(environmentId: string, id: string, actorId: string) {
+    const current = await prisma.costCenter.findFirst({
+      where: { id, environmentId }
     });
 
     if (!current) {
       throw new Error('Centro de costo no encontrado');
     }
 
-    return prisma.costCenter.update({
+    const costCenter = await prisma.costCenter.update({
       where: { id },
       data: { isActive: !current.isActive }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: costCenter.isActive ? 'COST_CENTER_ENABLED' : 'COST_CENTER_DISABLED',
+        targetType: 'CostCenter',
+        targetId: id,
+        oldValue: { isActive: current.isActive },
+        newValue: { isActive: costCenter.isActive }
+      }
+    });
+
+    return costCenter;
   }
 
 }

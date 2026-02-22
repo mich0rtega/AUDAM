@@ -31,7 +31,7 @@ export class MovementsController {
   async create(req: Request, res: Response) {
     const environmentId = (req as RequestWithEnv).environmentId as string;
 
-    const movement = await service.create(req.body, environmentId);
+    const movement = await service.create(req.body, environmentId, req.user!.userId);
     res.status(201).json(movement);
   }
 
@@ -40,7 +40,7 @@ export class MovementsController {
     const { id } = req.params;
     const environmentId = (req as RequestWithEnv).environmentId as string;
 
-    const movement = await service.update(id, req.body, environmentId);
+    const movement = await service.update(id, req.body, environmentId, req.user!.userId);
     res.json(movement);
   }
 
@@ -49,7 +49,7 @@ export class MovementsController {
     const { id } = req.params;
     const environmentId = (req as RequestWithEnv).environmentId as string;
 
-    await service.remove(id, environmentId);
+    await service.remove(id, environmentId, req.user!.userId);
     res.status(204).send();
   }
 
