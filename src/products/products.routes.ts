@@ -7,19 +7,19 @@ const router = Router();
 
 router.get(
   '/',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProductsController.list
 );
 
 router.get(
   '/:id',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProductsController.getById
 );
 
 router.post(
   '/',
-  businessRoute([Role.ADMIN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN]),
   ProductsController.create
 );
 
@@ -56,7 +56,7 @@ router.patch(
 // Producto individual 
 router.get(
   '/:id',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProductsController.getById
 );
 
@@ -70,7 +70,7 @@ router.post(
 // Cambio de precio controlado
 router.patch(
   '/:id/price',
-  businessRoute([Role.ADMIN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN]),
   ProductsController.changePrice
 );
 

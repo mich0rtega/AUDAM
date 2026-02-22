@@ -8,28 +8,28 @@ const router = Router();
 
 router.get(
   '/next-folio',
-  ...businessRoute([Role.USUARIO, Role.ALMACEN, Role.COMPRAS, Role.AUTORIZADOR, Role.ADMIN]),
+  ...businessRoute([Role.USUARIO, Role.ALMACEN, Role.AUTORIZADOR, Role.ADMIN]),
   RequisitionsController.getNextFolio
 );
 
 
 router.get(
   '/',
-  ...businessRoute([Role.USUARIO, Role.ALMACEN, Role.COMPRAS, Role.AUTORIZADOR, Role.ADMIN]),
+  ...businessRoute([Role.USUARIO, Role.ALMACEN, Role.AUTORIZADOR, Role.ADMIN]),
   RequisitionsController.list
 );
 
 
 router.get(
   '/:id',
-  ...businessRoute([Role.USUARIO, Role.ALMACEN, Role.COMPRAS, Role.AUTORIZADOR, Role.ADMIN]),
+  ...businessRoute([Role.USUARIO, Role.ALMACEN, Role.AUTORIZADOR, Role.ADMIN]),
   RequisitionsController.getById
 );
 
 
 router.get(
   '/:id/pdf',
-  ...businessRoute([Role.COMPRAS, Role.ALMACEN, Role.ADMIN]),
+  ...businessRoute([Role.ALMACEN, Role.ADMIN]),
   RequisitionsController.downloadPDF
 );
 

@@ -7,25 +7,25 @@ const router = Router();
 
 router.get(
   '/',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProvidersController.list
 );
 
 router.get(
   '/:id',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProvidersController.getById
 );
 
 router.post(
   '/',
-  businessRoute([Role.ADMIN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN]),
   ProvidersController.create
 );
 
 router.put(
   '/:id',
-  businessRoute([Role.ADMIN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN]),
   ProvidersController.update
 );
 

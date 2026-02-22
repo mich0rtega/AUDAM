@@ -8,7 +8,7 @@ const router = Router();
 // Product Types
 router.get(
   '/product-types',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   CatalogController.listProductTypes
 );
 
@@ -27,7 +27,7 @@ router.patch(
 // Product Status
 router.get(
   '/product-status',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   CatalogController.listProductStatus
 );
 
@@ -84,7 +84,7 @@ router.patch(
 // Providers
 router.get(
   '/providers',
-  businessRoute([Role.ADMIN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN]),
   CatalogController.listProviders
 );
 

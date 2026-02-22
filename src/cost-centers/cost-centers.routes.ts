@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   '/',
-  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   CostCentersController.list
 );
 
