@@ -11,6 +11,8 @@ import requisitionsRoutes from './requisitions/requisitions.routes';
 import movementsRoutes from './movements/movements.routes';
 import providersRoutes from './providers/providers.routes';
 import dashboardRoutes from './dashboard/dashboard.routes';
+import { csrfMiddleware } from './middlewares/csrf.middleware';
+
 
 
 const app = express();
@@ -23,6 +25,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(csrfMiddleware);
 
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);

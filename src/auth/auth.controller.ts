@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { roleEnvironmentAccess } from './permissions';
 import { Environment } from './auth.types';
 import { Role } from '@prisma/client';
+import { clearCsrfCookie, csrfConfig, setCsrfCookie } from '../middlewares/csrf.middleware';
+
 type UserEnvironmentDTO = {
   id: string;
   name: string;
@@ -29,7 +31,15 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production'
     });
 
-    res.json({ message: 'Login exitoso' });
+    const csrfToken = setCsrfCookie(res);
+
+    res.json({
+      message: 'Login exitoso',
+      csrf: {
+        token: csrfToken,
+        headerName: csrfConfig.headerName
+      }
+    });
   } catch {
     res.status(401).json({ message: 'Credenciales inválidas' });
   }
@@ -107,7 +117,16 @@ static async refresh(req: Request, res: Response) {
       secure: process.env.NODE_ENV === 'production'
     });
 
-    res.json({ message: 'Sesión renovada' });
+    clearCsrfCookie(res);
+    const csrfToken = setCsrfCookie(res);
+
+    res.json({
+      message: 'Sesión renovada',
+      csrf: {
+        token: csrfToken,
+        headerName: csrfConfig.headerName
+      }
+    });
   } catch {
     res.status(401).json({ message: 'Refresh inválido' });
   }
@@ -133,4 +152,3 @@ static async getEnvironments(req: Request, res: Response) {
   
 
 }
-
