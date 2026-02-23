@@ -292,7 +292,7 @@ export class RequisitionsService {
   }
 
 
-  static async deleteRequisition(
+  static async removeRequisition(
     id: string,
     environmentId: string,
     actorId: string
@@ -308,26 +308,119 @@ export class RequisitionsService {
       }
 
       if (!['BORRADOR', 'PENDIENTE'].includes(requisition.status.name)) {
-        throw new Error('No se puede eliminar una requisición autorizada o en proceso');
+        throw new Error('Solo se puede cancelar una requisición en borrador o pendiente');
       }
 
-      await tx.requisition.delete({
-        where: { id }
+      const cancelledStatus = await tx.requisitionStatus.findFirst({
+        where: {
+          environmentId,
+          name: 'CANCELADA'
+        }
       });
 
+      if (!cancelledStatus) {
+        throw new Error('Estado CANCELADA no encontrado en el entorno');
+      }
+
+      const updated = await tx.requisition.update({
+        where: { id },
+        data: {
+          statusId: cancelledStatus.id
+        },
+        include: {
+          status: true,
+          destination: true,
+          details: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
 
       await tx.auditLog.create({
         data: {
           actorId,
-          action: 'REQUISITION_DELETED',
+          action: 'REQUISITION_CANCELLED',
           targetType: 'Requisition',
           targetId: id,
           oldValue: {
             folio: requisition.folio,
             status: requisition.status.name
+          },
+          newValue: {
+            status: cancelledStatus.name
           }
         }
       });
+
+      return updated;
+    });
+  }
+
+  static async restoreRequisition(
+    id: string,
+    environmentId: string,
+    actorId: string
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const requisition = await tx.requisition.findFirst({
+        where: { id, environmentId },
+        include: { status: true }
+      });
+
+      if (!requisition) {
+        throw new Error('Requisición no encontrada');
+      }
+
+      if (requisition.status.name !== 'CANCELADA') {
+        throw new Error('Solo se pueden restaurar requisiciones canceladas');
+      }
+
+      const pendingStatus = await tx.requisitionStatus.findFirst({
+        where: {
+          environmentId,
+          name: 'PENDIENTE'
+        }
+      });
+
+      if (!pendingStatus) {
+        throw new Error('Estado PENDIENTE no encontrado en el entorno');
+      }
+
+      const updated = await tx.requisition.update({
+        where: { id },
+        data: {
+          statusId: pendingStatus.id
+        },
+        include: {
+          status: true,
+          destination: true,
+          details: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'REQUISITION_RESTORED',
+          targetType: 'Requisition',
+          targetId: id,
+          oldValue: {
+            folio: requisition.folio,
+            status: requisition.status.name
+          },
+          newValue: {
+            status: pendingStatus.name
+          }
+        }
+      });
+
+      return updated;
     });
   }
 

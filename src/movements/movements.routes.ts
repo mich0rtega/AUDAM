@@ -15,6 +15,7 @@ router.get('/:id', ...businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]), c
 router.get('/:id/pdf', ...businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]), controller.downloadPDF);
 router.post('/', ...businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]), controller.create);
 router.put('/:id', ...businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]), controller.update);
-router.delete('/:id', ...businessRoute([Role.ADMIN, Role.ALMACEN]), controller.remove);
+router.patch('/:id/remove', ...businessRoute([Role.ADMIN, Role.ALMACEN]), controller.remove);
+router.patch('/:id/restore', ...businessRoute([Role.ADMIN, Role.ALMACEN]), controller.restore);
 
 export default router;

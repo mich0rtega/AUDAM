@@ -54,10 +54,16 @@ router.post(
 );
 
 
-router.delete(
-  '/:id',
+router.patch(
+  '/:id/remove',
   ...businessRoute([Role.ALMACEN, Role.ADMIN]),
-  RequisitionsController.delete
+  RequisitionsController.remove
+);
+
+router.patch(
+  '/:id/restore',
+  ...businessRoute([Role.ALMACEN, Role.ADMIN]),
+  RequisitionsController.restore
 );
 
 export default router;

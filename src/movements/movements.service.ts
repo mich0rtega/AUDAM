@@ -178,11 +178,16 @@ export class MovementsService {
       throw new Error('Movimiento no encontrado');
     }
 
+    const currentObservations = exists.observations ?? '';
+
+    if (currentObservations.startsWith('[ELIMINADO]')) {
+      throw new Error('El movimiento ya está marcado como eliminado');
+    }
 
     const movement = await prisma.movement.update({
       where: { id },
       data: {
-        observations: '[ELIMINADO] ' + (exists.observations ?? '')
+        observations: `[ELIMINADO] ${currentObservations}`.trim()
       }
     });
 
@@ -190,6 +195,44 @@ export class MovementsService {
       data: {
         actorId,
         action: 'MOVEMENT_REMOVED',
+        targetType: 'Movement',
+        targetId: id,
+        oldValue: { observations: exists.observations },
+        newValue: { observations: movement.observations }
+      }
+    });
+
+    return movement;
+  }
+
+  async restore(id: string, environmentId: string, actorId: string) {
+    const exists = await prisma.movement.findFirst({
+      where: { id, environmentId }
+    });
+
+    if (!exists) {
+      throw new Error('Movimiento no encontrado');
+    }
+
+    const currentObservations = exists.observations ?? '';
+
+    if (!currentObservations.startsWith('[ELIMINADO]')) {
+      throw new Error('El movimiento no está marcado como eliminado');
+    }
+
+    const restoredObservations = currentObservations.replace(/^\[ELIMINADO\]\s*/, '') || null;
+
+    const movement = await prisma.movement.update({
+      where: { id },
+      data: {
+        observations: restoredObservations
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'MOVEMENT_RESTORED',
         targetType: 'Movement',
         targetId: id,
         oldValue: { observations: exists.observations },

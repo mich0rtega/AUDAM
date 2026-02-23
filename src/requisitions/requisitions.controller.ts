@@ -114,15 +114,35 @@ export class RequisitionsController {
     }
   }
 
-  static async delete(req: Request, res: Response) {
+  static async remove(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const environmentId = req.context!.environmentId;
       const actorId = req.user!.userId;
 
-      await RequisitionsService.deleteRequisition(id, environmentId, actorId);
+      const updated = await RequisitionsService.removeRequisition(id, environmentId, actorId);
 
-      res.json({ message: 'Requisición eliminada correctamente' });
+      res.json({
+        message: 'Requisición marcada como cancelada correctamente',
+        requisition: updated
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  static async restore(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const environmentId = req.context!.environmentId;
+      const actorId = req.user!.userId;
+
+      const updated = await RequisitionsService.restoreRequisition(id, environmentId, actorId);
+
+      res.json({
+        message: 'Requisición restaurada correctamente',
+        requisition: updated
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

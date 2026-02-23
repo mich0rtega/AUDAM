@@ -53,6 +53,14 @@ export class MovementsController {
     res.status(204).send();
   }
 
+  async restore(req: Request, res: Response) {
+    const { id } = req.params;
+    const environmentId = (req as RequestWithEnv).environmentId as string;
+
+    const movement = await service.restore(id, environmentId, req.user!.userId);
+    res.json(movement);
+  }
+
   async downloadPDF(req: Request, res: Response) {
     const { id } = req.params;
     const environmentId = (req as RequestWithEnv).environmentId as string;
