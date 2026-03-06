@@ -13,13 +13,13 @@ router.get(
 
 router.post(
   '/',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   CostCentersController.create
 );
 
 router.patch(
   '/:id/toggle',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   CostCentersController.toggle
 );
 

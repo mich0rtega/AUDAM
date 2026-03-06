@@ -11,184 +11,93 @@ const TARGET_TYPE_BY_MODEL: Record<string, string> = {
 
 export class CatalogService {
 
+  static async toggle(
+    model: 'productType' | 'productStatus' | 'movementType' | 'assetCategory' | 'provider',
+    id: string,
+    actorId: string
+  ) {
+    const current = await (prisma as any)[model].findUnique({ where: { id } });
+    if (!current) throw new Error('No encontrado');
 
-static async toggle(
-  model:
-    | 'productType'
-    | 'productStatus'
-    | 'movementType'
-    | 'assetCategory'
-    | 'provider',
-  id: string,
-  actorId: string
-) {
-  const current = await (prisma as any)[model].findUnique({ where: { id } });
-  if (!current) throw new Error('No encontrado');
+    const updated = await (prisma as any)[model].update({
+      where: { id },
+      data: { isActive: !current.isActive }
+    });
 
-  const updated = await (prisma as any)[model].update({
-    where: { id },
-    data: { isActive: !current.isActive }
-  });
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: updated.isActive ? `${model.toUpperCase()}_ENABLED` : `${model.toUpperCase()}_DISABLED`,
+        targetType: TARGET_TYPE_BY_MODEL[model],
+        targetId: id,
+        oldValue: { isActive: current.isActive },
+        newValue: { isActive: updated.isActive }
+      }
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      actorId,
-      action: updated.isActive ? `${model.toUpperCase()}_ENABLED` : `${model.toUpperCase()}_DISABLED`,
-      targetType: TARGET_TYPE_BY_MODEL[model],
-      targetId: id,
-      oldValue: { isActive: current.isActive },
-      newValue: { isActive: updated.isActive }
-    }
-  });
+    return updated;
+  }
 
-  return updated;
-}
+  static listProductTypes(environmentId: string) {
+    return prisma.productType.findMany({ where: { environmentId }, orderBy: { name: 'asc' } });
+  }
 
+  static async createProductType(environmentId: string, name: string, description: string | undefined, actorId: string) {
+    const productType = await prisma.productType.create({ data: { name, description, environmentId } });
+    await prisma.auditLog.create({ data: { actorId, action: 'PRODUCT_TYPE_CREATED', targetType: 'ProductType', targetId: productType.id, newValue: productType } });
+    return productType;
+  }
 
-static listProductTypes(environmentId: string) {
-  return prisma.productType.findMany({
-    where: { environmentId },
-    orderBy: { name: 'asc' }
-  });
-}
+  static listProductStatus(environmentId: string) {
+    return prisma.productStatus.findMany({ where: { environmentId }, orderBy: { name: 'asc' } });
+  }
 
-static async createProductType(
-  environmentId: string,
-  name: string,
-  description: string | undefined,
-  actorId: string
-) {
-  const productType = await prisma.productType.create({
-    data: { name, description, environmentId }
-  });
+  static async createProductStatus(environmentId: string, name: string, actorId: string) {
+    const productStatus = await prisma.productStatus.create({ data: { name, environmentId } });
+    await prisma.auditLog.create({ data: { actorId, action: 'PRODUCT_STATUS_CREATED', targetType: 'ProductStatus', targetId: productStatus.id, newValue: productStatus } });
+    return productStatus;
+  }
 
-  await prisma.auditLog.create({
-    data: {
-      actorId,
-      action: 'PRODUCT_TYPE_CREATED',
-      targetType: 'ProductType',
-      targetId: productType.id,
-      newValue: productType
-    }
-  });
+  static listMovementTypes(environmentId: string) {
+    return prisma.movementType.findMany({ where: { environmentId }, orderBy: { name: 'asc' } });
+  }
 
-  return productType;
-}
+  static async createMovementType(environmentId: string, name: string, direction: MovementDirection, actorId: string) {
+    const movementType = await prisma.movementType.create({ data: { name, direction, environmentId } });
+    await prisma.auditLog.create({ data: { actorId, action: 'MOVEMENT_TYPE_CREATED', targetType: 'MovementType', targetId: movementType.id, newValue: movementType } });
+    return movementType;
+  }
 
+  static listAssetCategories(environmentId: string) {
+    return prisma.assetCategory.findMany({ where: { environmentId }, orderBy: { name: 'asc' } });
+  }
 
-static listProductStatus(environmentId: string) {
-  return prisma.productStatus.findMany({
-    where: { environmentId },
-    orderBy: { name: 'asc' }
-  });
-}
+  static async createAssetCategory(environmentId: string, name: string, actorId: string) {
+    const assetCategory = await prisma.assetCategory.create({ data: { name, environmentId } });
+    await prisma.auditLog.create({ data: { actorId, action: 'ASSET_CATEGORY_CREATED', targetType: 'AssetCategory', targetId: assetCategory.id, newValue: assetCategory } });
+    return assetCategory;
+  }
 
-static async createProductStatus(environmentId: string, name: string, actorId: string) {
-  const productStatus = await prisma.productStatus.create({
-    data: { name, environmentId }
-  });
+  static listProviders(environmentId: string) {
+    return prisma.provider.findMany({ where: { environmentId }, orderBy: { nombre: 'asc' } });
+  }
 
-  await prisma.auditLog.create({
-    data: {
-      actorId,
-      action: 'PRODUCT_STATUS_CREATED',
-      targetType: 'ProductStatus',
-      targetId: productStatus.id,
-      newValue: productStatus
-    }
-  });
+  static async createProvider(environmentId: string, data: any, actorId: string) {
+    const provider = await prisma.provider.create({
+      data: { environmentId, nombre: data.nombre, contacto: data.contacto, telefono: data.telefono, email: data.email, direccion: data.direccion }
+    });
+    await prisma.auditLog.create({ data: { actorId, action: 'PROVIDER_CREATED', targetType: 'Provider', targetId: provider.id, newValue: provider } });
+    return provider;
+  }
 
-  return productStatus;
-}
+  static listRequisitionStatuses(environmentId: string) {
+    return prisma.requisitionStatus.findMany({ where: { environmentId }, orderBy: { name: 'asc' } });
+  }
 
-
-static listMovementTypes(environmentId: string) {
-  return prisma.movementType.findMany({
-    where: { environmentId },
-    orderBy: { name: 'asc' }
-  });
-}
-
-static async createMovementType(
-  environmentId: string,
-  name: string,
-  direction: MovementDirection,
-  actorId: string
-) {
-  const movementType = await prisma.movementType.create({
-    data: { name, direction, environmentId }
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorId,
-      action: 'MOVEMENT_TYPE_CREATED',
-      targetType: 'MovementType',
-      targetId: movementType.id,
-      newValue: movementType
-    }
-  });
-
-  return movementType;
-}
-
-
-static listAssetCategories(environmentId: string) {
-  return prisma.assetCategory.findMany({
-    where: { environmentId },
-    orderBy: { name: 'asc' }
-  });
-}
-
-static async createAssetCategory(environmentId: string, name: string, actorId: string) {
-  const assetCategory = await prisma.assetCategory.create({
-    data: { name, environmentId }
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorId,
-      action: 'ASSET_CATEGORY_CREATED',
-      targetType: 'AssetCategory',
-      targetId: assetCategory.id,
-      newValue: assetCategory
-    }
-  });
-
-  return assetCategory;
-}
-
-
-static listProviders(environmentId: string) {
-  return prisma.provider.findMany({
-    where: { environmentId },
-    orderBy: { nombre: 'asc' }
-  });
-}
-
-static async createProvider(environmentId: string, data: any, actorId: string) {
-  const provider = await prisma.provider.create({
-    data: {
-      environmentId,
-      nombre: data.nombre,
-      contacto: data.contacto,
-      telefono: data.telefono,
-      email: data.email,
-      direccion: data.direccion
-    }
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorId,
-      action: 'PROVIDER_CREATED',
-      targetType: 'Provider',
-      targetId: provider.id,
-      newValue: provider
-    }
-  });
-
-  return provider;
-}
-
+  // NUEVO: crear status de requisición
+  static async createRequisitionStatus(environmentId: string, name: string, actorId: string) {
+    const status = await prisma.requisitionStatus.create({ data: { name, environmentId } });
+    await prisma.auditLog.create({ data: { actorId, action: 'REQUISITION_STATUS_CREATED', targetType: 'RequisitionStatus', targetId: status.id, newValue: status } });
+    return status;
+  }
 }

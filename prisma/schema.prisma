@@ -48,6 +48,8 @@ model User {
   movements     Movement[]
   requisitions  Requisition[]      @relation("RequesterRequisitions")
   authorizedRequisitions Requisition[] @relation("AuthorizerRequisitions")
+  // Doble autorización
+  almacenAuthorizedRequisitions    Requisition[] @relation("AlmacenAuthorizerRequisitions")
 }
 
 enum Role {
@@ -217,7 +219,6 @@ model Product {
   especificacion String?
   imagenUrl      String?
   
-  // Campos restaurados
   sku  String?
   unit String?
 
@@ -244,13 +245,15 @@ model Asset {
 
   categoryId    String
   statusId      String
-  responsableId String
+  responsableId String?
 
-  marca       String
-  modelo      String?
-  numeroSerie String?
-  ubicacion   String?
-  imagenUrl   String?
+  marca             String
+  modelo            String?
+  numeroSerie       String?
+  ubicacion         String?
+  imagenUrl         String?
+  responsableNombre String?
+  centroCosto       String?
 
   stockActual Int?
   createdAt   DateTime @default(now())
@@ -258,7 +261,7 @@ model Asset {
   environment Environment   @relation(fields: [environmentId], references: [id])
   category    AssetCategory @relation(fields: [categoryId], references: [id])
   status      ProductStatus @relation(fields: [statusId], references: [id])
-  responsable User          @relation(fields: [responsableId], references: [id])
+  responsable User?         @relation(fields: [responsableId], references: [id])
 }
 
 
@@ -306,7 +309,6 @@ model Requisition {
   id            String   @id @default(uuid())
   environmentId String
 
-  // Campos restaurados
   folio         String   @unique
   solicitorId   String
   solicitorName String
@@ -315,6 +317,16 @@ model Requisition {
   
   requesterId String
   statusId    String
+
+  // ── DOBLE AUTORIZACIÓN ──────────────────────────────────────────────────────
+  // Firma 1: Encargado de Almacén
+  almacenAuthId    String?
+  almacenAuthAt    DateTime?
+  almacenApproved  Boolean?
+  // Firma 2: Autorizador / Mesa Directiva
+  autorizadorAuthId    String?
+  autorizadorAuthAt    DateTime?
+  autorizadorApproved  Boolean?
 
   observations String?
   createdAt    DateTime @default(now())
@@ -325,6 +337,7 @@ model Requisition {
   status      RequisitionStatus @relation(fields: [statusId], references: [id])
   destination CostCenter        @relation(fields: [destinationId], references: [id])
   authorizer  User?             @relation("AuthorizerRequisitions", fields: [authorizerId], references: [id])
+  almacenAuth User?             @relation("AlmacenAuthorizerRequisitions", fields: [almacenAuthId], references: [id])
 
   details RequisitionDetail[]
 

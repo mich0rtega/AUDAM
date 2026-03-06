@@ -8,12 +8,45 @@ import {
 } from './users.types';
 
 export class UsersService {
+
+  static async getAllUsers() {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        createdAt: true,
+        environments: {
+          include: {
+            environment: { select: { id: true, name: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+  }
+
+  static async getUserById(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        createdAt: true,
+        environments: {
+          include: {
+            environment: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+  }
+
   static async getUsersByEnvironment(environmentId: string) {
     const relations = await prisma.userEnvironment.findMany({
       where: { environmentId },
-      include: {
-        user: true
-      }
+      include: { user: true }
     });
 
     return relations.map(r => ({
@@ -23,32 +56,11 @@ export class UsersService {
     }));
   }
 
-  static async assignRoleInEnvironment(
-    userId: string,
-    environmentId: string,
-    role: Role
-  ) {
-    return prisma.userEnvironment.upsert({
-      where: {
-        userId_environmentId: { userId, environmentId }
-      },
-      update: { role },
-      create: {
-        userId,
-        environmentId,
-        role
-      }
-    });
-  }
-
- static async createUser(dto: CreateUserDto, actorId: string) {
+  static async createUser(dto: CreateUserDto, actorId: string) {
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     const user = await prisma.user.create({
-      data: {
-        email: dto.email,
-        password: passwordHash
-      }
+      data: { email: dto.email, password: passwordHash }
     });
 
     await prisma.auditLog.create({
@@ -63,10 +75,32 @@ export class UsersService {
     return user;
   }
 
-  static async assignRole(dto: AssignRoleDto, actorId: string) {
-    const ue = await prisma.userEnvironment.create({
-      data: dto
+  static async updateUser(userId: string, data: { email?: string; password?: string }, actorId: string) {
+    const updateData: any = {};
+    if (data.email) updateData.email = data.email;
+    if (data.password) updateData.password = await bcrypt.hash(data.password, 10);
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: { id: true, email: true, isActive: true, createdAt: true }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'USER_UPDATED',
+        targetType: 'User',
+        targetId: userId,
+        newValue: { email: data.email ? data.email : undefined }
+      }
+    });
+
+    return user;
+  }
+
+  static async assignRole(dto: AssignRoleDto, actorId: string) {
+    const ue = await prisma.userEnvironment.create({ data: dto });
 
     await prisma.auditLog.create({
       data: {
@@ -80,12 +114,19 @@ export class UsersService {
     return ue;
   }
 
+  static async assignRoleInEnvironment(userId: string, environmentId: string, role: Role) {
+    return prisma.userEnvironment.upsert({
+      where: { userId_environmentId: { userId, environmentId } },
+      update: { role, isActive: true, revokedAt: null },
+      create: { userId, environmentId, role }
+    });
+  }
+
   static async changeRole(dto: ChangeRoleDto, actorId: string) {
     const ue = await prisma.userEnvironment.update({
       where: { id: dto.userEnvironmentId },
       data: { role: dto.role }
     });
-
 
     await prisma.user.update({
       where: { id: ue.userId },
@@ -108,18 +149,10 @@ export class UsersService {
     return prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
-        data: {
-          isActive: false,
-          tokenVersion: { increment: 1 }
-        }
+        data: { isActive: false, tokenVersion: { increment: 1 } }
       }),
       prisma.auditLog.create({
-        data: {
-          actorId,
-          action: 'USER_DISABLED',
-          targetType: 'User',
-          targetId: userId
-        }
+        data: { actorId, action: 'USER_DISABLED', targetType: 'User', targetId: userId }
       })
     ]);
   }
@@ -127,82 +160,52 @@ export class UsersService {
   static async enableUser(userId: string, actorId: string) {
     await prisma.user.update({
       where: { id: userId },
-      data: {
-        isActive: true,
-        tokenVersion: { increment: 1 }
-      }
+      data: { isActive: true, tokenVersion: { increment: 1 } }
     });
 
     await prisma.auditLog.create({
-      data: {
-        actorId,
-        action: 'USER_ENABLED',
-        targetType: 'User',
-        targetId: userId
-      }
+      data: { actorId, action: 'USER_ENABLED', targetType: 'User', targetId: userId }
     });
   }
-  // Revocar acceso a un entorno
-static async revokeEnvironmentAccess(
-  userEnvironmentId: string,
-  actorId: string
-) {
-  return prisma.$transaction([
-    prisma.userEnvironment.update({
-      where: { id: userEnvironmentId },
-      data: {
-        isActive: false,
-        revokedAt: new Date()
-      }
-    }),
-    prisma.auditLog.create({
-      data: {
-        actorId,
-        action: 'ENVIRONMENT_REVOKED',
-        targetType: 'UserEnvironment',
-        targetId: userEnvironmentId
-      }
-    })
-  ]);
-}
 
-// Restaurar acceso a un entorno
-static async restoreEnvironmentAccess(
-  userEnvironmentId: string,
-  actorId: string
-) {
-  return prisma.$transaction([
-    prisma.userEnvironment.update({
-      where: { id: userEnvironmentId },
-      data: {
-        isActive: true,
-        revokedAt: null
-      }
-    }),
-    prisma.auditLog.create({
-      data: {
-        actorId,
-        action: 'ENVIRONMENT_RESTORED',
-        targetType: 'UserEnvironment',
-        targetId: userEnvironmentId
-      }
-    })
-  ]);
-}
-static async getAllUsers() {
-  return prisma.user.findMany({
-    select: {
-      id: true,
-      email: true,
-      isActive: true,
-      createdAt: true
-    },
-    orderBy: {
-      createdAt: 'asc'
-    }
-  });
-}
-}
+  static async revokeEnvironmentAccess(userEnvironmentId: string, actorId: string) {
+    return prisma.$transaction([
+      prisma.userEnvironment.update({
+        where: { id: userEnvironmentId },
+        data: { isActive: false, revokedAt: new Date() }
+      }),
+      prisma.auditLog.create({
+        data: {
+          actorId,
+          action: 'ENVIRONMENT_REVOKED',
+          targetType: 'UserEnvironment',
+          targetId: userEnvironmentId
+        }
+      })
+    ]);
+  }
 
+  static async restoreEnvironmentAccess(userEnvironmentId: string, actorId: string) {
+    return prisma.$transaction([
+      prisma.userEnvironment.update({
+        where: { id: userEnvironmentId },
+        data: { isActive: true, revokedAt: null }
+      }),
+      prisma.auditLog.create({
+        data: {
+          actorId,
+          action: 'ENVIRONMENT_RESTORED',
+          targetType: 'UserEnvironment',
+          targetId: userEnvironmentId
+        }
+      })
+    ]);
+  }
 
-
+  // Listar todos los entornos del sistema
+  static async listAllEnvironments() {
+    return prisma.environment.findMany({
+      select: { id: true, name: true }
+    });
+  }
+}

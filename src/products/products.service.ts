@@ -44,7 +44,10 @@ export class ProductsService {
         modelo: dto.modelo,
         especificacion: dto.especificacion,
         precioUnitario: dto.precioUnitario,
-        stockActual: 0
+        sku: dto.sku,
+        unit: dto.unit,
+        stockActual: dto.stockActual ?? 0,
+        imagenUrl: dto.imagenUrl ?? null
       }
     });
 
@@ -53,7 +56,15 @@ export class ProductsService {
         actorId,
         action: 'PRODUCT_CREATED',
         targetType: 'Product',
-        targetId: product.id
+        targetId: product.id,
+        newValue: {
+          marca: product.marca,
+          modelo: product.modelo,
+          sku: product.sku,
+          unit: product.unit,
+          precioUnitario: Number(product.precioUnitario),
+          stockActual: product.stockActual
+        }
       }
     });
 
@@ -66,6 +77,9 @@ export class ProductsService {
     dto: any,
     actorId: string
   ) {
+    const before = await prisma.product.findFirst({ where: { id, environmentId } });
+    if (!before) throw new Error('Producto no encontrado');
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -73,7 +87,8 @@ export class ProductsService {
         modelo: dto.modelo,
         especificacion: dto.especificacion,
         statusId: dto.statusId,
-        proveedorId: dto.proveedorId
+        proveedorId: dto.proveedorId,
+        imagenUrl: dto.imagenUrl !== undefined ? dto.imagenUrl : undefined
       }
     });
 
@@ -82,7 +97,21 @@ export class ProductsService {
         actorId,
         action: 'PRODUCT_UPDATED',
         targetType: 'Product',
-        targetId: id
+        targetId: id,
+        oldValue: {
+          marca: before.marca,
+          modelo: before.modelo,
+          especificacion: before.especificacion,
+          statusId: before.statusId,
+          proveedorId: before.proveedorId
+        },
+        newValue: {
+          marca: product.marca,
+          modelo: product.modelo,
+          especificacion: product.especificacion,
+          statusId: product.statusId,
+          proveedorId: product.proveedorId
+        }
       }
     });
 
@@ -104,7 +133,9 @@ export class ProductsService {
         actorId,
         action: 'PRODUCT_DISABLED',
         targetType: 'Product',
-        targetId: id
+        targetId: id,
+        oldValue: { isActive: true, marca: product.marca, sku: product.sku },
+        newValue: { isActive: false, marca: product.marca, sku: product.sku }
       }
     });
 
@@ -126,7 +157,9 @@ export class ProductsService {
         actorId,
         action: 'PRODUCT_ENABLED',
         targetType: 'Product',
-        targetId: id
+        targetId: id,
+        oldValue: { isActive: false, marca: product.marca, sku: product.sku },
+        newValue: { isActive: true, marca: product.marca, sku: product.sku }
       }
     });
 
@@ -155,7 +188,7 @@ export class ProductsService {
         throw new Error('Stock insuficiente');
       }
 
-      await tx.movement.create({
+      const movement = await tx.movement.create({
         data: {
           environmentId,
           typeId: dto.typeId,
@@ -173,6 +206,21 @@ export class ProductsService {
         }
       });
 
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: dto.direction === 'IN' ? 'PRODUCT_MOVEMENT_IN' : 'PRODUCT_MOVEMENT_OUT',
+          targetType: 'Movement',
+          targetId: movement.id,
+          oldValue: { stockAntes: product.stockActual },
+          newValue: {
+            stockDespues: newStock,
+            cantidad: dto.quantity,
+            producto: `${product.marca}${product.modelo ? ' ' + product.modelo : ''}`,
+            sku: product.sku
+          }
+        }
+      });
 
       return tx.product.update({
         where: { id: productId },
@@ -265,7 +313,9 @@ export class ProductsService {
         actorId,
         action: 'PRODUCT_STOCK_ADJUSTED',
         targetType: 'Product',
-        targetId: productId
+        targetId: productId,
+        oldValue: { stockActual: product.stockActual },
+        newValue: { stockActual: newStock, ajuste: dto.quantity, razon: dto.reason }
       }
     });
 
@@ -300,8 +350,8 @@ static async changePrice(
       action: 'PRODUCT_PRICE_CHANGED',
       targetType: 'Product',
       targetId: id,
-      oldValue: { precioUnitario: product.precioUnitario },
-      newValue: { precioUnitario }
+      oldValue: { precioUnitario: Number(product.precioUnitario), marca: product.marca },
+      newValue: { precioUnitario, marca: product.marca }
     }
   });
 

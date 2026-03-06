@@ -5,18 +5,30 @@ import { Role } from '@prisma/client';
 
 const router = Router();
 
-// Listar todos los usuarios (global)
+
 router.get(
-  '/all',
+  '/environments',
   ...businessRoute([Role.ADMIN]),
-  UsersController.listAll
+  UsersController.listAllEnvironments
 );
 
-// Listar usuarios del entorno activo
+// Todos los usuarios globales
+router.get(
+  '/all',
+  ...businessRoute([Role.ADMIN, Role.ALMACEN]),
+  UsersController.listAll
+);
 router.get(
   '/',
-  ...businessRoute([Role.ADMIN]),
+  ...businessRoute([Role.ADMIN, Role.ALMACEN]),
   UsersController.list
+);
+
+// Ver usuario por id
+router.get(
+  '/:id',
+  ...businessRoute([Role.ADMIN]),
+  UsersController.getById
 );
 
 // Crear usuario
@@ -26,21 +38,35 @@ router.post(
   UsersController.create
 );
 
-// Asignar rol en entorno
+// Editar usuario (email / password)
+router.patch(
+  '/:id/update',
+  ...businessRoute([Role.ADMIN]),
+  UsersController.update
+);
+
+// Asignar rol en entorno activo
 router.post(
   '/assign-role',
   ...businessRoute([Role.ADMIN]),
   UsersController.assignRole
 );
 
-// Cambiar rol
+// Asignar rol en entorno específico
+router.post(
+  '/assign-role-env',
+  ...businessRoute([Role.ADMIN]),
+  UsersController.assignRoleInEnvironment
+);
+
+// Cambiar rol de un userEnvironment
 router.patch(
   '/change-role',
   ...businessRoute([Role.ADMIN]),
   UsersController.changeRole
 );
 
-// Revocar acceso a entorno
+// Revocar acceso a entorno (por userEnvironment.id)
 router.patch(
   '/environment/:id/revoke',
   ...businessRoute([Role.ADMIN]),
@@ -54,14 +80,14 @@ router.patch(
   UsersController.restoreEnvironment
 );
 
-// Deshabilitar usuario 
+// Deshabilitar usuario
 router.patch(
   '/:id/disable',
   ...businessRoute([Role.ADMIN]),
   UsersController.disable
 );
 
-// Rehabilitar usuario
+// Habilitar usuario
 router.patch(
   '/:id/enable',
   ...businessRoute([Role.ADMIN]),

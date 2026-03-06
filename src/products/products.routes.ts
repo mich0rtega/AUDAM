@@ -7,25 +7,25 @@ const router = Router();
 
 router.get(
   '/',
-  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
   ProductsController.list
 );
 
 router.get(
   '/:id',
-  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
   ProductsController.getById
 );
 
 router.post(
   '/',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProductsController.create
 );
 
 router.patch(
   '/:id',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProductsController.update
 );
 
@@ -37,27 +37,20 @@ router.post(
 
 router.get(
   '/:id/movements',
-  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN, Role.COMPRAS]),
   ProductsController.listMovements
 );
 
 router.patch(
   '/:id/disable',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProductsController.disable
 );
 
 router.patch(
   '/:id/enable',
-  businessRoute([Role.ADMIN]),
-  ProductsController.enable
-);
-
-// Producto individual 
-router.get(
-  '/:id',
   businessRoute([Role.ADMIN, Role.ALMACEN]),
-  ProductsController.getById
+  ProductsController.enable
 );
 
 // Ajuste manual de inventario
@@ -73,6 +66,5 @@ router.patch(
   businessRoute([Role.ADMIN]),
   ProductsController.changePrice
 );
-
 
 export default router;

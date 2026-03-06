@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { Role } from '@prisma/client';
 import {
   CreateRequisitionDto,
   UpdateRequisitionDto,
@@ -7,6 +8,26 @@ import {
   RequisitionWithDetails
 } from './requisitions.types';
 
+const REQUISITION_INCLUDE = {
+  details: {
+    include: {
+      product: {
+        select: {
+          marca: true,
+          modelo: true,
+          sku: true,
+          unit: true
+        }
+      }
+    }
+  },
+  status: true,
+  destination: true,
+  requester: { select: { email: true } },
+  authorizer: { select: { email: true } },
+  almacenAuth: { select: { email: true } },
+};
+
 export class RequisitionsService {
 
   static async createRequisition(
@@ -14,49 +35,38 @@ export class RequisitionsService {
     environmentId: string,
     actorId: string
   ) {
-    const requisition = await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
+      const pendingStatus = await tx.requisitionStatus.findFirst({
+        where: { environmentId, name: 'PENDIENTE' }
+      });
+      if (!pendingStatus) throw new Error('Estado PENDIENTE no encontrado en el entorno');
+
+      let folio = dto.folio?.trim() || '';
+      if (!folio) {
+        folio = await RequisitionsService.getNextFolioInternal(tx, environmentId);
+      }
 
       const req = await tx.requisition.create({
         data: {
-          folio: dto.folio,
-          solicitorId: dto.solicitorId,
+          folio,
+          solicitorId: actorId,
           solicitorName: dto.solicitorName,
-          statusId: dto.statusId,
+          statusId: pendingStatus.id,
           destinationId: dto.destinationId,
-          requesterId: dto.solicitorId, // requesterId es el mismo que solicitorId
+          requesterId: actorId,
           environmentId,
+          observations: dto.observations,
           details: {
             create: dto.details.map(detail => ({
               productId: detail.productId,
               quantity: detail.quantity,
-              unitPrice: detail.unitPrice || 0,
+              unitPrice: detail.unitPrice ?? 0,
               notes: detail.observations
             }))
           }
         },
-        include: {
-          details: {
-            include: {
-              product: {
-                select: {
-                  marca: true,
-                  modelo: true,
-                  sku: true,
-                  unit: true
-                }
-              }
-            }
-          },
-          status: true,
-          destination: true,
-          requester: {
-            select: {
-              email: true
-            }
-          }
-        }
+        include: REQUISITION_INCLUDE
       });
-
 
       await tx.auditLog.create({
         data: {
@@ -75,11 +85,22 @@ export class RequisitionsService {
 
       return req;
     });
-
-    return requisition;
   }
 
-  
+  private static async getNextFolioInternal(tx: any, environmentId: string): Promise<string> {
+    const last = await tx.requisition.findFirst({
+      where: { environmentId },
+      orderBy: { createdAt: 'desc' },
+      select: { folio: true }
+    });
+
+    if (!last) return '0001';
+
+    const lastNum = parseInt(last.folio.replace(/\D/g, '')) || 0;
+    const next = lastNum + 1;
+    return next.toString().padStart(4, '0');
+  }
+
   static async getRequisitions(
     environmentId: string,
     filters?: RequisitionFilters
@@ -90,7 +111,7 @@ export class RequisitionsService {
     if (filters?.solicitorId) where.solicitorId = filters.solicitorId;
     if (filters?.folio) where.folio = { contains: filters.folio, mode: 'insensitive' };
     if (filters?.costCenterId) where.destinationId = filters.costCenterId;
-    
+
     if (filters?.startDate || filters?.endDate) {
       where.createdAt = {};
       if (filters.startDate) where.createdAt.gte = filters.startDate;
@@ -99,34 +120,9 @@ export class RequisitionsService {
 
     return prisma.requisition.findMany({
       where,
-      include: {
-        details: {
-          include: {
-            product: {
-              select: {
-                marca: true,
-                modelo: true,
-                sku: true,
-                unit: true
-              }
-            }
-          }
-        },
-        status: true,
-        destination: true,
-        requester: {
-          select: {
-            email: true
-          }
-        },
-        authorizer: {
-          select: {
-            email: true
-          }
-        }
-      },
+      include: REQUISITION_INCLUDE,
       orderBy: { createdAt: 'desc' }
-    });
+    }) as any;
   }
 
   static async getRequisitionById(
@@ -134,37 +130,9 @@ export class RequisitionsService {
     environmentId: string
   ): Promise<RequisitionWithDetails | null> {
     return prisma.requisition.findFirst({
-      where: {
-        id,
-        environmentId
-      },
-      include: {
-        details: {
-          include: {
-            product: {
-              select: {
-                marca: true,
-                modelo: true,
-                sku: true,
-                unit: true
-              }
-            }
-          }
-        },
-        status: true,
-        destination: true,
-        requester: {
-          select: {
-            email: true
-          }
-        },
-        authorizer: {
-          select: {
-            email: true
-          }
-        }
-      }
-    });
+      where: { id, environmentId },
+      include: REQUISITION_INCLUDE
+    }) as any;
   }
 
   static async updateRequisition(
@@ -175,25 +143,20 @@ export class RequisitionsService {
   ) {
     return prisma.$transaction(async (tx) => {
       const oldRequisition = await tx.requisition.findFirst({
-        where: { id, environmentId }
+        where: { id, environmentId },
+        include: { status: true }
       });
 
-      if (!oldRequisition) {
-        throw new Error('Requisición no encontrada');
+      if (!oldRequisition) throw new Error('Requisición no encontrada');
+
+      if (oldRequisition.status.name === 'PENDIENTE' && dto.statusId) {
+        throw new Error('El estado no puede cambiarse manualmente mientras está PENDIENTE');
       }
 
       const updated = await tx.requisition.update({
         where: { id },
         data: dto,
-        include: {
-          details: {
-            include: {
-              product: true
-            }
-          },
-          status: true,
-          destination: true
-        }
+        include: REQUISITION_INCLUDE
       });
 
       await tx.auditLog.create({
@@ -202,14 +165,8 @@ export class RequisitionsService {
           action: 'REQUISITION_UPDATED',
           targetType: 'Requisition',
           targetId: id,
-          oldValue: {
-            statusId: oldRequisition.statusId,
-            observations: oldRequisition.observations
-          },
-          newValue: {
-            statusId: updated.statusId,
-            observations: updated.observations
-          }
+          oldValue: { statusId: oldRequisition.statusId },
+          newValue: { statusId: updated.statusId }
         }
       });
 
@@ -217,12 +174,19 @@ export class RequisitionsService {
     });
   }
 
-
+  /**
+   * DOBLE AUTORIZACIÓN:
+   * - Rol ALMACEN  → firma como "Encargado de Almacén"
+   * - Rol AUTORIZADOR/ADMIN → firma como "Autorizador / Mesa Directiva"
+   * - Solo cuando AMBAS firmas son `approved=true` → status AUTORIZADA
+   * - Si CUALQUIERA rechaza → status RECHAZADA
+   */
   static async authorizeRequisition(
     id: string,
     dto: AuthorizeRequisitionDto,
     environmentId: string,
-    actorId: string
+    actorId: string,
+    actorRole: Role
   ) {
     return prisma.$transaction(async (tx) => {
       const requisition = await tx.requisition.findFirst({
@@ -230,59 +194,121 @@ export class RequisitionsService {
         include: { status: true }
       });
 
-      if (!requisition) {
-        throw new Error('Requisición no encontrada');
+      if (!requisition) throw new Error('Requisición no encontrada');
+
+      const statusName = requisition.status.name.toUpperCase();
+      if (!['PENDIENTE', 'EN REVISION'].includes(statusName)) {
+        throw new Error(`No se puede autorizar una requisición en estado ${requisition.status.name}`);
       }
 
+      // Determinar qué campo actualizar según el rol
+      const isAlmacen = actorRole === Role.ALMACEN;
+      const isAutorizador = actorRole === Role.AUTORIZADOR || actorRole === Role.ADMIN;
 
-      const newStatus = await tx.requisitionStatus.findFirst({
-        where: {
-          environmentId,
-          name: dto.approved ? 'AUTORIZADA' : 'RECHAZADA'
+      if (!isAlmacen && !isAutorizador) {
+        throw new Error('Tu rol no tiene permiso para autorizar requisiciones');
+      }
+
+      // Si rechaza → estado RECHAZADA inmediatamente
+      if (!dto.approved) {
+        const rejectedStatus = await tx.requisitionStatus.findFirst({
+          where: { environmentId, name: 'RECHAZADA' }
+        });
+        if (!rejectedStatus) throw new Error('Estado RECHAZADA no encontrado en el entorno');
+
+        const updateData: any = {
+          statusId: rejectedStatus.id,
+          observations: dto.observations ?? requisition.observations,
+        };
+
+        if (isAlmacen) {
+          updateData.almacenAuthId = actorId;
+          updateData.almacenAuthAt = new Date();
+          updateData.almacenApproved = false;
+        } else {
+          updateData.autorizadorAuthId = actorId;
+          updateData.autorizadorAuthAt = new Date();
+          updateData.autorizadorApproved = false;
+          updateData.authorizerId = actorId;
         }
-      });
 
-      if (!newStatus) {
-        throw new Error('Estado no encontrado');
+        const updated = await tx.requisition.update({
+          where: { id },
+          data: updateData,
+          include: REQUISITION_INCLUDE
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            action: 'REQUISITION_REJECTED',
+            targetType: 'Requisition',
+            targetId: id,
+            oldValue: { status: requisition.status.name },
+            newValue: { status: rejectedStatus.name, role: actorRole, observations: dto.observations }
+          }
+        });
+
+        return updated;
+      }
+
+      // Si aprueba → registrar su firma
+      const updateData: any = {
+        observations: dto.observations ?? requisition.observations
+      };
+
+      if (isAlmacen) {
+        updateData.almacenAuthId = actorId;
+        updateData.almacenAuthAt = new Date();
+        updateData.almacenApproved = true;
+      } else {
+        updateData.autorizadorAuthId = actorId;
+        updateData.autorizadorAuthAt = new Date();
+        updateData.autorizadorApproved = true;
+        updateData.authorizerId = actorId;
+      }
+
+      // Verificar si la OTRA firma ya está aprobada también
+      const almacenApproved  = isAlmacen ? true : (requisition as any).almacenApproved;
+      const autorizadorApproved = isAutorizador ? true : (requisition as any).autorizadorApproved;
+
+      if (almacenApproved && autorizadorApproved) {
+        // Ambas firmas completas → AUTORIZADA
+        const approvedStatus = await tx.requisitionStatus.findFirst({
+          where: { environmentId, name: 'AUTORIZADA' }
+        });
+        if (!approvedStatus) throw new Error('Estado AUTORIZADA no encontrado en el entorno');
+        updateData.statusId = approvedStatus.id;
+      } else {
+        // Solo una firma, queda en revisión
+        const reviewStatus = await tx.requisitionStatus.findFirst({
+          where: { environmentId, name: { in: ['EN REVISION', 'PENDIENTE'] } },
+          orderBy: { name: 'asc' }
+        });
+        if (reviewStatus && reviewStatus.name === 'EN REVISION') {
+          updateData.statusId = reviewStatus.id;
+        }
+        // Si no hay estado EN REVISION, se queda en PENDIENTE (no cambia statusId)
       }
 
       const updated = await tx.requisition.update({
         where: { id },
-        data: {
-          authorizerId: dto.authorizerId,
-          statusId: newStatus.id,
-          observations: dto.observations
-        },
-        include: {
-          details: {
-            include: {
-              product: true
-            }
-          },
-          status: true,
-          destination: true,
-          authorizer: {
-            select: {
-              email: true
-            }
-          }
-        }
+        data: updateData,
+        include: REQUISITION_INCLUDE
       });
 
- 
       await tx.auditLog.create({
         data: {
           actorId,
-          action: dto.approved ? 'REQUISITION_APPROVED' : 'REQUISITION_REJECTED',
+          action: 'REQUISITION_APPROVED_PARTIAL',
           targetType: 'Requisition',
           targetId: id,
-          oldValue: {
-            status: requisition.status.name
-          },
+          oldValue: { status: requisition.status.name },
           newValue: {
-            status: newStatus.name,
-            authorizer: dto.authorizerId,
-            observations: dto.observations
+            status: updated.status?.name,
+            role: actorRole,
+            almacenApproved,
+            autorizadorApproved
           }
         }
       });
@@ -291,51 +317,28 @@ export class RequisitionsService {
     });
   }
 
-
-  static async removeRequisition(
-    id: string,
-    environmentId: string,
-    actorId: string
-  ) {
+  static async removeRequisition(id: string, environmentId: string, actorId: string) {
     return prisma.$transaction(async (tx) => {
       const requisition = await tx.requisition.findFirst({
         where: { id, environmentId },
         include: { status: true }
       });
 
-      if (!requisition) {
-        throw new Error('Requisición no encontrada');
-      }
+      if (!requisition) throw new Error('Requisición no encontrada');
 
       if (!['BORRADOR', 'PENDIENTE'].includes(requisition.status.name)) {
         throw new Error('Solo se puede cancelar una requisición en borrador o pendiente');
       }
 
       const cancelledStatus = await tx.requisitionStatus.findFirst({
-        where: {
-          environmentId,
-          name: 'CANCELADA'
-        }
+        where: { environmentId, name: 'CANCELADA' }
       });
-
-      if (!cancelledStatus) {
-        throw new Error('Estado CANCELADA no encontrado en el entorno');
-      }
+      if (!cancelledStatus) throw new Error('Estado CANCELADA no encontrado en el entorno');
 
       const updated = await tx.requisition.update({
         where: { id },
-        data: {
-          statusId: cancelledStatus.id
-        },
-        include: {
-          status: true,
-          destination: true,
-          details: {
-            include: {
-              product: true
-            }
-          }
-        }
+        data: { statusId: cancelledStatus.id },
+        include: REQUISITION_INCLUDE
       });
 
       await tx.auditLog.create({
@@ -344,13 +347,8 @@ export class RequisitionsService {
           action: 'REQUISITION_CANCELLED',
           targetType: 'Requisition',
           targetId: id,
-          oldValue: {
-            folio: requisition.folio,
-            status: requisition.status.name
-          },
-          newValue: {
-            status: cancelledStatus.name
-          }
+          oldValue: { folio: requisition.folio, status: requisition.status.name },
+          newValue: { status: cancelledStatus.name }
         }
       });
 
@@ -358,50 +356,37 @@ export class RequisitionsService {
     });
   }
 
-  static async restoreRequisition(
-    id: string,
-    environmentId: string,
-    actorId: string
-  ) {
+  static async restoreRequisition(id: string, environmentId: string, actorId: string) {
     return prisma.$transaction(async (tx) => {
       const requisition = await tx.requisition.findFirst({
         where: { id, environmentId },
         include: { status: true }
       });
 
-      if (!requisition) {
-        throw new Error('Requisición no encontrada');
-      }
+      if (!requisition) throw new Error('Requisición no encontrada');
 
       if (requisition.status.name !== 'CANCELADA') {
         throw new Error('Solo se pueden restaurar requisiciones canceladas');
       }
 
       const pendingStatus = await tx.requisitionStatus.findFirst({
-        where: {
-          environmentId,
-          name: 'PENDIENTE'
-        }
+        where: { environmentId, name: 'PENDIENTE' }
       });
-
-      if (!pendingStatus) {
-        throw new Error('Estado PENDIENTE no encontrado en el entorno');
-      }
+      if (!pendingStatus) throw new Error('Estado PENDIENTE no encontrado en el entorno');
 
       const updated = await tx.requisition.update({
         where: { id },
         data: {
-          statusId: pendingStatus.id
-        },
-        include: {
-          status: true,
-          destination: true,
-          details: {
-            include: {
-              product: true
-            }
-          }
-        }
+          statusId: pendingStatus.id,
+          almacenAuthId: null,
+          almacenAuthAt: null,
+          almacenApproved: null,
+          autorizadorAuthId: null,
+          autorizadorAuthAt: null,
+          autorizadorApproved: null,
+          authorizerId: null,
+        } as any,
+        include: REQUISITION_INCLUDE
       });
 
       await tx.auditLog.create({
@@ -410,13 +395,8 @@ export class RequisitionsService {
           action: 'REQUISITION_RESTORED',
           targetType: 'Requisition',
           targetId: id,
-          oldValue: {
-            folio: requisition.folio,
-            status: requisition.status.name
-          },
-          newValue: {
-            status: pendingStatus.name
-          }
+          oldValue: { folio: requisition.folio, status: requisition.status.name },
+          newValue: { status: pendingStatus.name }
         }
       });
 
@@ -425,18 +405,16 @@ export class RequisitionsService {
   }
 
   static async getNextFolio(environmentId: string): Promise<string> {
-    const lastRequisition = await prisma.requisition.findFirst({
+    const last = await prisma.requisition.findFirst({
       where: { environmentId },
       orderBy: { createdAt: 'desc' },
       select: { folio: true }
     });
 
-    if (!lastRequisition) {
-      return '000001';
-    }
+    if (!last) return '0001';
 
-    const lastNumber = parseInt(lastRequisition.folio);
-    const nextNumber = lastNumber + 1;
-    return nextNumber.toString().padStart(6, '0');
+    const lastNum = parseInt(last.folio.replace(/\D/g, '')) || 0;
+    const next = lastNum + 1;
+    return next.toString().padStart(4, '0');
   }
 }

@@ -70,4 +70,22 @@ static async history(req: Request, res: Response) {
   res.json(history);
 }
 
+static async createMovement(req: Request, res: Response) {
+  const movement = await AssetsService.createMovement(
+    req.context!.environmentId,
+    req.params.id,
+    req.body,
+    req.user!.userId
+  );
+  res.status(201).json(movement);
+}
+
+static async listMovements(req: Request, res: Response) {
+  const movements = await AssetsService.listMovements(
+    req.context!.environmentId,
+    req.params.id
+  );
+  res.json(movements);
+}
+
 }

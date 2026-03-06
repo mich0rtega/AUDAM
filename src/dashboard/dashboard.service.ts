@@ -28,32 +28,32 @@ export class DashboardService {
     return { message: 'Rol sin dashboard configurado' };
   }
 
-  private static async adminOverview(environmentId: string) {
-    const [
-      consumoPorCentroCosto,
-      movimientosPorTipo,
-      productosBajoStock,
-      entradasPorOrigen,
-      salidasPorDestino,
-      historialRequisiciones
-    ] = await Promise.all([
-      this.getConsumptionByCostCenter(environmentId),
-      this.getMovementsByDirection(environmentId),
-      this.getLowStockProducts(environmentId),
-      this.getEntriesByOrigin(environmentId),
-      this.getExitsByDestination(environmentId),
-      this.getRequisitionHistory(environmentId)
-    ]);
+    private static async adminOverview(environmentId: string) {
+      const [
+        consumoPorCentroCosto,
+        movimientosPorTipo,
+        productosBajoStock,
+        entradasPorOrigen,
+        salidasPorDestino,
+        historialRequisiciones
+      ] = await Promise.all([
+        this.getConsumptionByCostCenter(environmentId),
+        this.getMovementsByDirection(environmentId),
+        this.getLowStockProducts(environmentId),
+        this.getEntriesByOrigin(environmentId),
+        this.getExitsByDestination(environmentId),
+        this.getRequisitionHistory(environmentId)
+      ]);
 
-    return {
-      role: Role.ADMIN,
-      consumoPorCentroCosto,
-      movimientosPorTipo,
-      productosBajoStock,
-      entradasPorOrigen,
-      salidasPorDestino,
-      historialRequisiciones
-    };
+      return {
+        role: Role.ADMIN,
+        consumoPorCentroCosto,
+        movimientosPorTipo,
+        productosBajoStock,
+        entradasPorOrigen,
+        salidasPorDestino,
+        historialRequisiciones
+      };
   }
 
   private static async almacenOverview(environmentId: string) {

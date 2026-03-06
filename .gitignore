@@ -8,7 +8,7 @@ dist
 
 .env.docker
 prisma/dev.db
-
+back.zip
 
 dist/
 

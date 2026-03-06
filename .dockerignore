@@ -1,0 +1,6 @@
+.env
+.git
+node_modules
+backup_*.sql
+src/src
+back.zip

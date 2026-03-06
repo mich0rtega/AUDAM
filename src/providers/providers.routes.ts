@@ -19,19 +19,19 @@ router.get(
 
 router.post(
   '/',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProvidersController.create
 );
 
 router.put(
   '/:id',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProvidersController.update
 );
 
 router.patch(
   '/:id/toggle',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   ProvidersController.toggle
 );
 

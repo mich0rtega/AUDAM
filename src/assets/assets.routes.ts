@@ -13,25 +13,25 @@ router.get(
 
 router.post(
   '/',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   AssetsController.create
 );
 
 router.patch(
   '/:id',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   AssetsController.update
 );
 
 router.patch(
   '/:id/assign',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   AssetsController.assign
 );
 
 router.patch(
   '/:id/status',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   AssetsController.changeStatus
 );
 
@@ -43,14 +43,27 @@ router.get(
 
 router.post(
   '/:id/transfer',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   AssetsController.transfer
 );
 
 router.get(
   '/:id/history',
-  businessRoute([Role.ADMIN]),
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
   AssetsController.history
+);
+
+// Movimientos de activos (entradas / salidas de stock)
+router.post(
+  '/:id/movements',
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  AssetsController.createMovement
+);
+
+router.get(
+  '/:id/movements',
+  businessRoute([Role.ADMIN, Role.ALMACEN]),
+  AssetsController.listMovements
 );
 
 
