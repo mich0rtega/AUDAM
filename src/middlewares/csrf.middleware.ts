@@ -19,7 +19,7 @@ export function setCsrfCookie(res: Response, csrfToken?: string) {
 
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false,
-    sameSite: 'strict',
+    sameSite: 'none',
     secure: isProduction
   });
 
