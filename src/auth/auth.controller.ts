@@ -21,13 +21,13 @@ export class AuthController {
 
       res.cookie('access_token', accessToken, {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'none',
         secure: process.env.NODE_ENV === 'production'
       });
 
       res.cookie('refresh_token', refreshToken, {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'none',
         secure: process.env.NODE_ENV === 'production'
       });
 
@@ -85,7 +85,7 @@ export class AuthController {
 
     res.cookie('active_environment', environmentId, {
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'none',
       secure: process.env.NODE_ENV === 'production'
     });
 
@@ -105,13 +105,13 @@ export class AuthController {
 
       res.cookie('access_token', accessToken, {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'none',
         secure: process.env.NODE_ENV === 'production'
       });
 
       res.cookie('refresh_token', refreshToken, {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'none',
         secure: process.env.NODE_ENV === 'production'
       });
 
